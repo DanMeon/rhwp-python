@@ -17,8 +17,11 @@ def test_version_matches_semver() -> None:
 
 
 def test_version_is_package_version() -> None:
-    # ^ Cargo.toml 의 version="0.1.0" 과 일치
-    assert rhwp.version() == "0.1.0"
+    # ^ rhwp.version() 은 설치된 패키지 메타데이터와 일치
+    #   (Cargo.toml → wheel metadata → rhwp.version() 파이프라인 검증, 버전 bump 와 독립)
+    from importlib.metadata import version as pkg_version
+
+    assert rhwp.version() == pkg_version("rhwp-python")
 
 
 def test_rhwp_core_version_returns_string() -> None:
