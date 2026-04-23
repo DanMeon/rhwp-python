@@ -44,7 +44,12 @@ Upstream = "https://github.com/edwardkim/rhwp"
 
 [project.optional-dependencies]
 langchain = ["langchain-core>=0.2"]
-examples = ["typer>=0.12"]
+# ^ examples 는 01~03 예제 스크립트 일괄 실행용 우산 extras — typer + langchain-core + text-splitters 합집합
+examples = [
+    "typer>=0.12",
+    "langchain-core>=0.2",
+    "langchain-text-splitters>=0.2",
+]
 
 [dependency-groups]
 dev = ["maturin>=1.7"]

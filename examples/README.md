@@ -6,12 +6,11 @@
 ## 사전 준비
 
 ```bash
-# 예제 실행용 (typer 포함)
+# 01 ~ 03 예제 전부 한 방에 설치 (typer + langchain-core + text-splitters)
 pip install "rhwp-python[examples]"
-
-# LangChain 예제까지 돌리려면
-pip install "rhwp-python[langchain,examples]" langchain-text-splitters
 ```
+
+> 통합 레이어만 필요하면 (예제 러너 없이 직접 `HwpLoader` 사용) `pip install "rhwp-python[langchain]"` 만으로 충분하다.
 
 ## 스크립트
 
