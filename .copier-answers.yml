@@ -1,0 +1,15 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.2.0-2-g9d1b082
+_src_path: /Users/kevin/Desktop/kevin/python-template
+author_name: DanMeon
+cov_fail_under: 60
+github_owner: DanMeon
+license: MIT
+min_python: '3.10'
+package_name: rhwp
+project_description: PyO3 Python bindings for rhwp — zero-dependency HWP parser
+project_name: rhwp-python
+python_versions: 3.10, 3.11, 3.12, 3.13
+use_cli: false
+use_pypi_publish: true
+visibility: public

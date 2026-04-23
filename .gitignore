@@ -1,0 +1,39 @@
+# * Environment
+.env
+
+# * Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+wheels/
+.venv/
+
+# * Rust / maturin
+target/
+*.so
+*.pyd
+*.dylib
+# ^ library crate (publish=false) — Cargo.lock 은 재현성 측면에서 유용하지 않음 (Rust 관례)
+Cargo.lock
+
+# * IDE
+.idea/
+.vscode/
+*.swp
+
+# * Testing
+.pytest_cache/
+.pyright/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# * MAC OS
+.DS_Store
+
+# * MCP
+.serena/

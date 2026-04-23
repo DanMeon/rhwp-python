@@ -1,0 +1,44 @@
+[package]
+name = "rhwp-python"
+version = "0.1.0"
+edition = "2021"
+# ^ rust-version 미명시 — 상위 rhwp crate 정책(stable Rust, MSRV unclaimed) 준수.
+#   PyO3 0.28 이 Rust 1.83+ 요구하지만, 이는 README 에 문서로 안내
+license = "MIT"
+description = "PyO3 Python bindings for rhwp — HWP/HWPX parser and renderer"
+repository = "https://github.com/DanMeon/rhwp-python"
+readme = "README.md"
+publish = false
+
+# * sdist 포함 파일 제어 (pydantic-core 패턴)
+#   주의:
+#     - 반드시 [package] 내부에 둘 것. [workspace] 이후에 두면 workspace.include 로 잘못 파싱됨
+#     - LICENSE 는 신규 리포 루트에 보유 → sdist 에 포함 (maturin license-files 설정과 중복 안 됨)
+include = [
+    "/pyproject.toml",
+    "/README.md",
+    "/LICENSE",
+    "/src",
+    "/python/rhwp",
+    "/tests",
+    "!__pycache__",
+    "!*.so",
+    "!*.pyd",
+]
+
+# * 자기 자신을 독립 workspace root 로 선언
+#   submodule 의 external/rhwp Cargo.toml 이 [workspace] 를 추가해도 이 crate 가 자동 편입되지 않도록 안전장치
+[workspace]
+
+[lib]
+name = "_rhwp"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.28", features = ["extension-module", "abi3-py39"] }
+rhwp = { path = "external/rhwp" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true

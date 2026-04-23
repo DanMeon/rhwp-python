@@ -1,0 +1,114 @@
+name: CI
+
+# 트리거: PR / main 푸시 — test 계열만 (wheel 빌드 + 배포는 release.yml)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }} / py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --release
+      - name: Install test dependencies
+        run: |
+          pip install pytest pytest-cov pyright \
+            langchain-core langchain-text-splitters
+      - name: Run pytest (not slow) with coverage
+        run: pytest tests/ -m "not slow" --cov=rhwp --cov-report=term-missing -v
+      - name: Run pyright (normal)
+        run: |
+          pyright python/ \
+            tests/test_smoke.py tests/test_parse.py tests/test_text_extraction.py \
+            tests/test_errors.py tests/test_svg_rendering.py tests/test_pdf_rendering.py \
+            tests/test_langchain_loader.py tests/conftest.py tests/type_check_samples.py
+      - name: Run pyright (intentional errors — expect 4)
+        run: |
+          set +e
+          pyright --outputjson tests/type_check_errors.py > pyright-errors.json
+          count=$(python -c "import json; print(json.load(open('pyright-errors.json'))['summary']['errorCount'])")
+          echo "intentional error count: $count"
+          if [ "$count" != "4" ]; then
+            echo "::error::expected 4 intentional errors, got $count"
+            exit 1
+          fi
+
+  test-slow:
+    name: Test slow (Linux / py3.12 — PDF)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --release
+      - name: Install test dependencies
+        run: pip install pytest langchain-core langchain-text-splitters
+      - name: Run pytest slow (PDF rendering)
+        run: pytest tests/ -m slow -v
+
+  test-core-only:
+    name: Test without extras (importorskip auto-skip)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --release
+      - name: Install test dependencies (no langchain extras — intentional)
+        run: pip install pytest
+      - name: Run pytest — langchain tests must auto-skip via importorskip
+        run: |
+          pytest tests/ -m "not slow" -v | tee pytest-output.txt
+          if ! grep -qE '(^|[^0-9])29 skipped([^0-9]|$)' pytest-output.txt; then
+            echo "::error::expected 29 langchain tests to skip via importorskip"
+            exit 1
+          fi

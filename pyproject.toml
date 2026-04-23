@@ -1,0 +1,108 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "rhwp-python"
+description = "PyO3 Python bindings for rhwp — parser and renderer for HWP/HWPX documents (Korean word processor format)"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE", "external/rhwp/LICENSE"]
+readme = "README.md"
+authors = [
+    { name = "Edward Kim" },
+    { name = "DanMeon", email = "jgy5262@naver.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Typing :: Typed",
+    "Natural Language :: Korean",
+    "Topic :: Office/Business :: Office Suites",
+    "Topic :: Text Processing",
+]
+keywords = ["hwp", "hwpx", "hancom", "korean", "document", "parser"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/DanMeon/rhwp-python"
+Repository = "https://github.com/DanMeon/rhwp-python"
+Issues = "https://github.com/DanMeon/rhwp-python/issues"
+Upstream = "https://github.com/edwardkim/rhwp"
+
+[project.optional-dependencies]
+langchain = ["langchain-core>=0.2"]
+examples = ["typer>=0.12"]
+
+[dependency-groups]
+dev = ["maturin>=1.7"]
+testing = [
+    {include-group = "dev"},
+    "pytest>=8",
+    "pytest-cov",
+    "langchain-core>=0.2",
+    "langchain-text-splitters>=0.2",
+]
+linting = [
+    {include-group = "dev"},
+    "ruff",
+    "pyright",
+]
+all = [
+    {include-group = "dev"},
+    {include-group = "testing"},
+    {include-group = "linting"},
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "rhwp._rhwp"
+bindings = "pyo3"
+features = ["pyo3/extension-module"]
+include = [
+    { path = "python/rhwp/py.typed", format = "wheel" },
+    { path = "python/rhwp/**/*.pyi", format = "wheel" },
+]
+# ^ path dep vendoring 시 submodule 하위의 개발 아티팩트가 sdist 에 끼어드는 것을 방어
+exclude = [
+    { path = "**/.venv*/**", format = "sdist" },
+    { path = "**/.git/**", format = "sdist" },
+    { path = "**/node_modules/**", format = "sdist" },
+    { path = "**/__pycache__/**", format = "sdist" },
+    { path = "**/target/**", format = "sdist" },
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+minversion = "8.0"
+addopts = ["-ra", "--strict-markers"]
+markers = [
+    "slow: 느린 테스트 (PDF 렌더링 등)",
+    "langchain: LangChain 통합 테스트 (rhwp-python[langchain] extras 필요)",
+]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["python", "tests"]
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
