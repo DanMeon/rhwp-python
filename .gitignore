@@ -37,3 +37,6 @@ coverage.xml
 
 # * MCP
 .serena/
+
+# * Examples 산출물
+render_output/

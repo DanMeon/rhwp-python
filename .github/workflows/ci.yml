@@ -1,11 +1,22 @@
 name: CI
 
 # 트리거: PR / main 푸시 — test 계열만 (wheel 빌드 + 배포는 publish.yml)
+# 문서·라이선스·gitignore 전용 변경은 paths-ignore 로 스킵 (런타임·빌드 영향 없음)
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE*'
+      - '.gitignore'
   workflow_dispatch: {}
 
 permissions:
