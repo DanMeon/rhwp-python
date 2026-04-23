@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-04-23
+
+Patch release: fixes the sdist packaging so the source distribution stays within PyPI's 100 MB file size limit.
+
+### Fixed
+
+- `maturin sdist` now excludes `external/rhwp/samples/` (≈60 MB of test fixture HWP/HWPX files). The v0.1.0 sdist exceeded PyPI's 100 MB limit and was rejected by PyPI; wheels were unaffected and the `rhwp-python 0.1.0` wheels on PyPI remain functional.
+
+### Changed
+
+- `[tool.maturin] exclude` in `pyproject.toml` adds `**/samples/**` for the sdist format.
+
 ## [0.1.0] — 2026-04-22
 
 Initial PyO3 Python bindings for the rhwp Rust HWP/HWPX parser and renderer.
@@ -50,8 +62,9 @@ The `rhwp` Rust core is consumed via git submodule pinned to upstream commit `16
 
 ### Distribution
 
-- Local `maturin build --release` wheel (3.0 MB) and `maturin sdist` (1.3 MB, submodule-based vendoring) both verified end-to-end in a clean venv: install → import → `rhwp.parse` → `HwpLoader` load.
+- Local `maturin build --release` wheel (3.0 MB) verified end-to-end in a clean venv: install → import → `rhwp.parse` → `HwpLoader` load. (Note: the v0.1.0 sdist exceeded PyPI's 100 MB limit and did not upload; fixed in [0.1.1](#011--2026-04-23).)
 - GitHub Actions workflow (`publish.yml`) builds Linux (x86_64 + aarch64) / macOS (x86_64 + aarch64) / Windows wheels + sdist on release publish, then uploads via PyPI Trusted Publisher (OIDC).
 
-[Unreleased]: https://github.com/DanMeon/rhwp-python/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/DanMeon/rhwp-python/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/DanMeon/rhwp-python/releases/tag/v0.1.1
 [0.1.0]: https://github.com/DanMeon/rhwp-python/releases/tag/v0.1.0

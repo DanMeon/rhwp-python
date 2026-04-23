@@ -1,6 +1,6 @@
 [package]
 name = "rhwp-python"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 # ^ rust-version 미명시 — 상위 rhwp crate 정책(stable Rust, MSRV unclaimed) 준수.
 #   PyO3 0.28 이 Rust 1.83+ 요구하지만, 이는 README 에 문서로 안내
