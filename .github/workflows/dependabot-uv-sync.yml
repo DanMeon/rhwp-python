@@ -15,9 +15,9 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@v8.1.0
 
-      - run: uv sync
+      - run: uv sync --no-install-project
 
       - name: Commit updated uv.lock
         run: |
