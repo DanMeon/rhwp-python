@@ -1,7 +1,8 @@
 # Phase 2 — Document IR 확장
 
-**대상 버전**: v0.3.0
+**대상 버전**: v0.3.0 (IR 확장 + `rhwp-py` CLI 동시 진행)
 **선행 조건**: v0.2.0 Document IR v1 (기본 스키마) GA — [v0.2.0/ir.md](v0.2.0/ir.md)
+**병행 문서**: [v0.3.0/cli.md](v0.3.0/cli.md) — CLI 재도입 설계
 
 ## 포지셔닝 변경 안내
 
