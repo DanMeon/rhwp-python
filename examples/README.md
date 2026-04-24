@@ -6,7 +6,7 @@
 ## 사전 준비
 
 ```bash
-# 01 ~ 03 예제 전부 한 방에 설치 (typer + langchain-core + text-splitters)
+# 01 ~ 05 예제 전부 한 방에 설치 (typer + langchain-core + text-splitters)
 pip install "rhwp-python[examples]"
 ```
 
@@ -49,12 +49,33 @@ python examples/03_langchain_rag.py path/to/your/file.hwp --chunk-size 1000 --ch
 - `--chunk-size INT` : 청크 최대 문자 수 (기본 500)
 - `--chunk-overlap INT` : 청크 간 오버랩 (기본 50)
 
+### 4. Document IR — `04_document_ir.py`
+
+```bash
+python examples/04_document_ir.py path/to/your/file.hwp
+python examples/04_document_ir.py path/to/your/file.hwp --limit 20
+python examples/04_document_ir.py path/to/your/file.hwp --out ir.json
+```
+
+`to_ir()` 로 구조화 IR 을 얻어 블록 타입 분포, layout 셀 개수, 첫 표의 HTML 직렬화를 출력. `--out` 으로 전체 IR 을 JSON 파일로 저장 가능.
+
+옵션:
+- `--limit / -n INT` : 미리보기할 블록 최대 개수 (기본 15)
+- `--out / -o PATH` : 전체 IR 을 JSON 파일로 덤프
+
+### 5. LangChain `ir-blocks` 모드 — `05_langchain_ir_blocks.py`
+
+```bash
+python examples/05_langchain_ir_blocks.py path/to/your/file.hwp
+python examples/05_langchain_ir_blocks.py path/to/your/file.hwp --kind-filter table
+```
+
+`HwpLoader(mode="ir-blocks")` 가 단락은 text, 표는 **HTML** (HtmlRAG 호환) 로 매핑하는 것을 단락/표 유형별로 미리본다. 표에는 `rows`/`cols`/`caption`/`text` 가 메타로 함께 노출되어 dual-track RAG (임베딩=평문, LLM=HTML) 가 가능.
+
+옵션:
+- `--kind-filter / -k {all,paragraph,table}` : 표시 종류 필터 (기본 `all`)
+- `--limit / -n INT` : 미리보기할 Document 최대 개수 (기본 10)
+
 ## 릴리스 전 실제 HWP 검증
 
-릴리스 직전 **본인의 업무 HWP 파일 3종 (일반 문서 / 장문 / HWPX)** 으로 세 스크립트를 순서대로 돌려 출력을 육안 확인한다. 한컴오피스 뷰어로 연 원본과 대조해 섹션/문단/페이지 수치가 맞는지, SVG/PDF 가 깨지지 않는지 본다.
-
-## 향후 CLI 도입 계획
-
-예제의 `typer.run(main)` 패턴은 추후 v0.2 에서 `python/rhwp/cli.py` 모듈로 승격 예정.
-그 시점엔 `pip install rhwp-python` 만으로 `rhwp parse file.hwp`, `rhwp render file.hwp` 같은
-명령을 바로 쓸 수 있도록 `[project.scripts]` 에 엔트리포인트를 노출할 계획.
+릴리스 직전 **본인의 업무 HWP 파일 3종 (일반 문서 / 장문 / HWPX)** 으로 다섯 스크립트를 순서대로 돌려 출력을 육안 확인한다. 한컴오피스 뷰어로 연 원본과 대조해 섹션/문단/페이지 수치, SVG/PDF 렌더, IR 의 block/table 구조, LangChain Document 매핑이 깨지지 않는지 본다.

@@ -1,13 +1,8 @@
-//! Document IR v1 매퍼 — Rust `Document` → Python dict → Pydantic `HwpDocument`.
+//! Document IR 매퍼 — Rust `Document` → Python dict → Pydantic `HwpDocument`.
 //!
-//! 설계 근거: `docs/roadmap/v0.2.0/ir.md` §Rust 경계 패턴 + §테이블 표현.
-//!
-//! Stage S3 범위: Paragraph + InlineRun + Provenance + Table (셀 배열 / HTML /
-//! text 3중 표현) + 중첩 표. 표가 있는 문단은 "ParagraphBlock 1 + 포함 표마다
-//! TableBlock 1" 로 body 에 평탄화 (text/table 정확 interleaving 은 v0.3.0+).
-//!
-//! Table 분리 추출의 부산물로 같은 Paragraph 가 생성한 여러 블록은 동일
-//! `(section_idx, para_idx)` Provenance 를 공유한다.
+//! 표가 있는 문단은 "ParagraphBlock 1 + 포함 표마다 TableBlock 1" 로 body 에
+//! 평탄화되며, 같은 Paragraph 에서 파생된 블록은 동일 `(section_idx, para_idx)`
+//! Provenance 를 공유한다. 셀 내부 paragraphs 는 재귀로 TableCell.blocks 에 들어간다.
 
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
@@ -25,8 +20,8 @@ static HWP_DOCUMENT_CLASS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 /// 문서 전체를 Python dict 로 변환 후 Pydantic `HwpDocument` 로 검증한다.
 ///
-/// 결과는 `Py<PyAny>` — 호출자가 `OnceCell` 에 캐시 저장. GIL 이 필요하므로
-/// 호출 경로 전체가 GIL 유지 구간에서 실행된다.
+/// 호출 경로 전체가 GIL 유지 구간에서 실행된다 — dict 생성과 Pydantic 호출 모두
+/// Python heap 접근을 요구하기 때문.
 pub fn build_hwp_document(py: Python<'_>, doc: &Document) -> PyResult<Py<PyAny>> {
     let raw = build_document_dict(py, doc)?;
     let hwp_class = HWP_DOCUMENT_CLASS.import(py, "rhwp.ir.nodes", "HwpDocument")?;
@@ -37,9 +32,6 @@ pub fn build_hwp_document(py: Python<'_>, doc: &Document) -> PyResult<Py<PyAny>>
 fn build_document_dict<'py>(py: Python<'py>, doc: &Document) -> PyResult<Bound<'py, PyDict>> {
     let dict = PyDict::new(py);
 
-    // ^ schema_name / schema_version 은 Pydantic 기본값 사용 — 명시 설정 불필요
-
-    // * metadata — v0.2.0 S3 는 전부 None 출고 (HWP Summary Information 매핑은 v0.3.0+)
     let metadata = PyDict::new(py);
     metadata.set_item("title", py.None())?;
     metadata.set_item("author", py.None())?;
@@ -47,7 +39,6 @@ fn build_document_dict<'py>(py: Python<'py>, doc: &Document) -> PyResult<Bound<'
     metadata.set_item("modification_time", py.None())?;
     dict.set_item("metadata", metadata)?;
 
-    // * sections — S3 도 section_idx 만 (용지/단 매핑은 v0.3.0+)
     let sections = PyList::empty(py);
     for (section_idx, _section) in doc.sections.iter().enumerate() {
         let sect = PyDict::new(py);
@@ -56,11 +47,11 @@ fn build_document_dict<'py>(py: Python<'py>, doc: &Document) -> PyResult<Bound<'
     }
     dict.set_item("sections", sections)?;
 
-    // * body — 전 섹션의 모든 문단을 평탄화 (Paragraph → [ParagraphBlock, TableBlock...])
     let body = PyList::empty(py);
     for (section_idx, section) in doc.sections.iter().enumerate() {
         for (para_idx, para) in section.paragraphs.iter().enumerate() {
-            let blocks = flatten_paragraph_to_blocks(py, section_idx, para_idx, para, &doc.doc_info)?;
+            let blocks =
+                flatten_paragraph_to_blocks(py, section_idx, para_idx, para, &doc.doc_info)?;
             for blk in blocks {
                 body.append(blk)?;
             }
@@ -68,7 +59,6 @@ fn build_document_dict<'py>(py: Python<'py>, doc: &Document) -> PyResult<Bound<'
     }
     dict.set_item("body", body)?;
 
-    // * furniture — v0.2.0 은 빈 컨테이너만 (ir.md §비목표)
     let furniture = PyDict::new(py);
     furniture.set_item("page_headers", PyList::empty(py))?;
     furniture.set_item("page_footers", PyList::empty(py))?;
@@ -81,10 +71,9 @@ fn build_document_dict<'py>(py: Python<'py>, doc: &Document) -> PyResult<Bound<'
 /// 한 Paragraph 를 Block dict 리스트로 평탄화한다.
 ///
 /// - 항상 ParagraphBlock 하나 생성 (text + inlines)
-/// - Paragraph 의 `controls` 에서 `Control::Table` 만 TableBlock 으로 각각 생성
-/// - 동일 `(section_idx, para_idx)` Provenance 를 공유. text 내 컨트롤 위치 기반
-///   정확한 interleaving 은 v0.3.0+ 이월
-/// - 재귀: TableCell.blocks 가 이 함수를 다시 호출하여 중첩 표 자연 지원
+/// - Paragraph.controls 중 `Control::Table` 만 TableBlock 으로 각각 생성
+/// - 파생 블록들은 동일 `(section_idx, para_idx)` Provenance 공유
+/// - TableCell 의 내부 paragraphs 에서 이 함수를 재호출해 중첩 표 자연 지원
 fn flatten_paragraph_to_blocks<'py>(
     py: Python<'py>,
     section_idx: usize,
@@ -127,12 +116,11 @@ fn build_paragraph_block<'py>(
 
 /// 문단의 `char_shapes` 를 InlineRun 리스트로 변환한다.
 ///
-/// 상류 `start_pos` 는 UTF-16 위치 — codepoint 인덱스로 변환해 InlineRun 에
-/// 실어보낸다 (ir.md §단락 내 InlineRun + §3 char 오프셋). `char_shapes` 가
-/// 비어 있거나 전부 컨트롤 뒤 위치인 경우 단일 런으로 폴백한다.
-///
-/// 관례상 HWP 는 `char_shapes[0].start_pos == 0` 을 보장하지만, 손상된 파일
-/// 대비로 첫 shape 앞 prefix 가 있으면 style-less 런으로 prepend 한다.
+/// 상류 `start_pos` 는 UTF-16 위치 — InlineRun 텍스트 슬라이싱을 위해
+/// codepoint 인덱스로 변환한다. `char_shapes` 가 비어 있거나 모든 엔트리의
+/// 범위가 텍스트 밖이면 텍스트 전체를 style-less 단일 런으로 폴백한다.
+/// HWP 관례상 첫 shape 는 `start_pos == 0` 이지만, 손상된 파일 대비로 앞
+/// prefix 가 있으면 style-less 런으로 prepend 한다.
 fn build_inline_runs<'py>(
     py: Python<'py>,
     para: &Paragraph,
@@ -151,7 +139,6 @@ fn build_inline_runs<'py>(
 
     let text_chars: Vec<char> = para.text.chars().collect();
 
-    // ^ 첫 shape 의 start_pos 가 0 보다 큰 경우, 앞부분 텍스트를 style-less 런으로 prepend
     let first_start_utf16 = para.char_shapes[0].start_pos;
     if first_start_utf16 > 0 {
         let prefix_end = utf16_to_cp(&para.char_offsets, first_start_utf16, total_cp);
@@ -189,7 +176,6 @@ fn build_inline_runs<'py>(
         runs.append(make_inline_run(py, &text_slice, Some(shape_id), shape)?)?;
     }
 
-    // ^ 전부 컨트롤 뒤 위치라 런이 하나도 생성 안 됐으면 텍스트 전체를 단일 런으로 폴백
     if runs.is_empty() {
         runs.append(make_inline_run(py, &para.text, None, None)?)?;
     }
@@ -234,7 +220,6 @@ fn make_inline_run<'py>(
         "strikethrough",
         shape.map(|s| s.strikethrough).unwrap_or(false),
     )?;
-    // ^ href/ruby 는 상류 Control 트리에서 별도 노출 — 후속 스테이지
     dict.set_item("href", py.None())?;
     dict.set_item("ruby", py.None())?;
     match raw_style_id {
@@ -243,8 +228,6 @@ fn make_inline_run<'py>(
     }
     Ok(dict)
 }
-
-// * Table — S3 범위 (ir.md §테이블 표현)
 
 fn build_table_block<'py>(
     py: Python<'py>,
@@ -263,15 +246,13 @@ fn build_table_block<'py>(
     )?;
     dict.set_item("html", table_to_html(table))?;
     dict.set_item("text", table_to_text(table))?;
-    // ^ caption 은 단순 텍스트 추출만 — 복합 캡션 (캡션 안의 블록) 은 v0.3.0+ 이월
     let caption_text = table.caption.as_ref().and_then(extract_caption_text);
     match caption_text {
         Some(s) => dict.set_item("caption", s)?,
         None => dict.set_item("caption", py.None())?,
     }
 
-    // ^ TableBlock 의 Provenance — char_start/char_end 는 "표 위치" 로 해석이 모호하므로
-    //   부모 Paragraph 의 text 범위 밖임을 나타내기 위해 None 출고
+    // ^ 표는 부모 Paragraph 의 text 범위 밖에 있으므로 char_start/char_end 는 None
     let prov = PyDict::new(py);
     prov.set_item("section_idx", section_idx)?;
     prov.set_item("para_idx", para_idx)?;
@@ -298,18 +279,16 @@ fn build_table_cells<'py>(
         d.set_item("col", cell.col as usize)?;
         d.set_item("row_span", cell.row_span.max(1) as usize)?;
         d.set_item("col_span", cell.col_span.max(1) as usize)?;
-        // ^ grid_index: row-major 선형 인덱스. 병합 span 내부가 아닌 앵커 위치
         d.set_item(
             "grid_index",
             (cell.row as usize) * cols + (cell.col as usize),
         )?;
         d.set_item("role", cell_role(cell))?;
 
-        // * 셀 내부: 각 inner paragraph 를 flatten — 중첩 표 재귀 지원
         let blocks = PyList::empty(py);
         for inner in &cell.paragraphs {
-            // ^ 내부 문단의 para_idx 는 외부 표의 para_idx 를 그대로 공유 (간단화)
-            //   더 정밀한 식별자 (cell-local idx) 는 v0.3.0+ 검토
+            // ^ 내부 문단은 외부 표의 para_idx 를 그대로 공유한다 —
+            //   cell-local 식별자를 도입하면 iter_blocks Provenance 계약이 복잡해진다
             for blk in flatten_paragraph_to_blocks(py, section_idx, para_idx, inner, doc_info)? {
                 blocks.append(blk)?;
             }
@@ -322,18 +301,21 @@ fn build_table_cells<'py>(
 }
 
 fn cell_role(cell: &Cell) -> &'static str {
-    // ^ HWP 는 header 가 row/column 구분 없음 — row_header/column_header 어느 쪽으로
-    //   확정하기 어려우므로 단순화: is_header → "column_header", 그 외 → "data".
-    //   "layout" (간격용 빈 셀 감지) 는 DocLayNet 어휘지만 HWP 에서 자동 식별이
-    //   불가능하므로 S3 는 제공하지 않는다 (ir.md §테이블 표현)
     if cell.is_header {
         "column_header"
+    } else if is_layout_cell(cell) {
+        "layout"
     } else {
         "data"
     }
 }
 
-/// Caption 에서 텍스트만 추출 — 복합 캡션은 v0.3.0+ 이월
+fn is_layout_cell(cell: &Cell) -> bool {
+    let merged = cell.row_span > 1 || cell.col_span > 1;
+    merged && cell.paragraphs.iter().all(|p| p.text.trim().is_empty())
+}
+
+/// Caption 에서 텍스트만 추출한다 (복합 캡션 구조는 미지원).
 fn extract_caption_text(caption: &rhwp::model::shape::Caption) -> Option<String> {
     let text: Vec<String> = caption
         .paragraphs
@@ -460,6 +442,57 @@ mod tests {
     fn utf16_to_cp_sentinel_returns_fallback() {
         let offsets = vec![0u32, 1, 2];
         assert_eq!(utf16_to_cp(&offsets, u32::MAX, 3), 3);
+    }
+
+    fn make_paragraph(text: &str) -> rhwp::model::paragraph::Paragraph {
+        rhwp::model::paragraph::Paragraph {
+            text: text.to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn cell_role_header() {
+        let cell = Cell {
+            is_header: true,
+            ..Default::default()
+        };
+        assert_eq!(cell_role(&cell), "column_header");
+    }
+
+    #[test]
+    fn cell_role_empty_unmerged_is_data() {
+        let cell = Cell::default();
+        assert_eq!(cell_role(&cell), "data");
+    }
+
+    #[test]
+    fn cell_role_merged_empty_is_layout() {
+        let cell = Cell {
+            row_span: 2,
+            ..Default::default()
+        };
+        assert_eq!(cell_role(&cell), "layout");
+    }
+
+    #[test]
+    fn cell_role_merged_nonempty_is_data() {
+        let cell = Cell {
+            col_span: 2,
+            paragraphs: vec![make_paragraph("content")],
+            ..Default::default()
+        };
+        assert_eq!(cell_role(&cell), "data");
+    }
+
+    #[test]
+    fn cell_role_merged_whitespace_only_is_layout() {
+        let cell = Cell {
+            row_span: 3,
+            paragraphs: vec![make_paragraph("   \n\t")],
+            ..Default::default()
+        };
+        assert_eq!(cell_role(&cell), "layout");
     }
 
     #[test]

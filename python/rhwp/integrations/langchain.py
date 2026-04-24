@@ -124,10 +124,8 @@ def _block_to_content_and_meta(block: Block) -> tuple[str, dict[str, Any]]:
             "text": block.text,
             "caption": block.caption,
         }
-    # UnknownBlock — forward-compat. kind 를 메타에 노출하고 page_content 는 비움
-    # ^ v0.3.0+ 에서 PictureBlock/FormulaBlock 등 새 variant 가 추가되면 그 variant 의
-    #   elif isinstance(block, XxxBlock): ... 분기를 이 assert 보다 위에 먼저 추가해야 한다.
-    #   그러지 않으면 AssertionError 로 fail-fast (의도적인 방어 — silent fallback 방지)
+    # 새 Block variant 가 추가되면 그 variant 의 elif 를 이 assert 보다 위에 먼저
+    # 추가해야 한다. 그러지 않으면 AssertionError 로 fail-fast (silent fallback 방지)
     assert isinstance(block, UnknownBlock)
     return "", {
         "kind": block.kind,

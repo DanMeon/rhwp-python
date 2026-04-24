@@ -11,7 +11,7 @@ use crate::ir;
 #[pyclass(name = "Document", module = "rhwp", unsendable)]
 pub struct PyDocument {
     pub(crate) inner: rhwp::document_core::DocumentCore,
-    // ^ 첫 to_ir() 호출 시 1회 구성, 이후 재사용. unsendable 덕에 lock 불필요 (ir.md §7)
+    // ^ 첫 to_ir() 호출 시 1회 구성, 이후 재사용. unsendable 단일-스레드 보장 덕에 lock 불필요
     ir_cache: OnceCell<Py<PyAny>>,
 }
 
@@ -141,8 +141,8 @@ impl PyDocument {
     /// 시 Pydantic `ValidationError` 가 발생한다. 독립 사본이 필요하면
     /// `ir.model_copy(deep=True)` 를 사용한다.
     fn to_ir(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        // ^ OnceCell::get_or_try_init 은 nightly-only — 수동 get/set 으로 대체.
-        //   unsendable → 단일 스레드 접근이라 get() → set() 사이 경쟁 없음
+        // ^ OnceCell::get_or_try_init 은 stable 에서 사용 불가 — 수동 get/set.
+        //   unsendable 덕에 get→set 사이 경쟁 없음 (expect 패닉 불가능)
         if let Some(cached) = self.ir_cache.get() {
             return Ok(cached.clone_ref(py));
         }

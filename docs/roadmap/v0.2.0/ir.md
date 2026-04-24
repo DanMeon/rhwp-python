@@ -198,6 +198,16 @@ match block:
 
 `role: Literal["data" | "column_header" | "row_header" | "layout"]` — DocLayNet 파생 어휘. `"layout"` 은 간격용 빈 셀 등 비의미 셀(연구 결과의 반패턴 5 방지).
 
+**Role 매핑 heuristic** (Rust 매퍼):
+
+| 조건 | role |
+|---|---|
+| `Cell.is_header == true` | `"column_header"` |
+| 병합 (`row_span > 1` 또는 `col_span > 1`) AND 모든 paragraph 텍스트가 공백 | `"layout"` |
+| 그 외 | `"data"` |
+
+병합 + empty 조합만 `"layout"` 으로 분류하는 보수적 기준 — 병합되지 않은 빈 셀은 "아직 채워지지 않은 데이터 칸" 일 가능성을 배제할 수 없어 `"data"` 를 유지한다. 더 정교한 detection (주변 context, fill ratio 등) 은 상위 시맨틱 레이어에서 확장할 수 있다. HWP 스펙상 row vs column header 구분이 없어 `"row_header"` 는 현재 출고되지 않지만 enum 값은 예약되어 있다.
+
 ### 단락 내 InlineRun
 
 상류 `Paragraph.char_shapes: Vec<CharShapeRef>` 를 UTF-16 위치 기준으로 런으로 변환하되, **의미 있는 속성만** 노출:

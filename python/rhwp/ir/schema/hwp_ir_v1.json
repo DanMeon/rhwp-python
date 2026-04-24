@@ -4,7 +4,7 @@
   "$defs": {
     "DocumentMetadata": {
       "additionalProperties": false,
-      "description": "문서 레벨 메타데이터. v0.2.0 은 ``str | None`` 으로만 노출한다.\n\n``creation_time`` / ``modification_time`` 은 S2 Rust 매퍼에서 ISO 8601\n문자열로 출고한다. v0.3.0 에서 ``datetime`` 타입 교체는 MINOR 호환\n(optional 필드 타입 확장) 범위 — 현 시점은 JSON 직렬화 친화성이 우선.",
+      "description": "문서 레벨 메타데이터. 시각은 ISO 8601 문자열로 출고한다.",
       "properties": {
         "title": {
           "anyOf": [
@@ -60,7 +60,7 @@
     },
     "Furniture": {
       "additionalProperties": false,
-      "description": "장식 노드 컨테이너 — RAG 가 임베딩에서 필터링 가능.\n\nv0.2.0 S1 은 빈 리스트만 출고 — 머리글/꼬리말 **본문** 노드 파싱은 v0.3.0+.",
+      "description": "장식 노드 컨테이너 — RAG 가 임베딩에서 필터링 가능.\n\n현재 파서는 본문 블록을 넣지 않으므로 세 리스트는 기본적으로 비어있다.",
       "properties": {
         "page_headers": {
           "items": {
@@ -278,7 +278,7 @@
             }
           ],
           "default": null,
-          "description": "Inclusive (start_page, end_page). v0.2.0 은 None 출고 — 페이지 경계는 상류 코어의 렌더 단계에서만 계산된다.",
+          "description": "Inclusive (start_page, end_page). 렌더 단계에서만 계산되므로 파싱 경로는 None 을 출고한다.",
           "title": "Page Range"
         }
       },
@@ -291,7 +291,7 @@
     },
     "Section": {
       "additionalProperties": false,
-      "description": "HWP 구역.\n\nv0.2.0 S1 은 ``section_idx`` 만 노출. 용지 크기·방향·단 수·머리글/꼬리말\n레퍼런스는 S2 Rust 매핑 시점에 MINOR 호환 확장으로 추가한다.",
+      "description": "HWP 구역 식별자. 용지·단·헤더 레퍼런스 등 상세 속성은 향후 추가된다.",
       "properties": {
         "section_idx": {
           "title": "Section Idx",
@@ -365,7 +365,7 @@
     },
     "TableCell": {
       "additionalProperties": false,
-      "description": "표 셀. ``blocks`` 가 재귀 ``Block`` 리스트라 중첩 표를 자연 지원한다.\n\n``role`` 어휘는 DocLayNet 파생 — ``\"layout\"`` 은 간격용 빈 셀 등 비의미 셀\n로 RAG 가 필터링할 수 있도록 한다 (ir.md §테이블 표현).",
+      "description": "표 셀. ``blocks`` 가 재귀 ``Block`` 리스트라 중첩 표를 자연 지원한다.\n\n``role`` 어휘는 DocLayNet 파생. ``\"layout\"`` 은 구조 유지용 비의미 셀\n(병합된 빈 영역 등) — LLM 이 \"데이터 없음이 아닌 레이아웃 요소\" 로 인식하도록 태깅한다.",
       "properties": {
         "row": {
           "title": "Row",
@@ -392,7 +392,7 @@
         },
         "role": {
           "default": "data",
-          "description": "DocLayNet-derived role vocabulary. HWP does not distinguish column vs row headers, so v0.2.0 maps is_header → 'column_header' and leaves 'row_header' / 'layout' as valid enum values for producers that can identify them (e.g. future heuristics or user annotation layers).",
+          "description": "DocLayNet-derived cell role. Current producer maps HWP 'is_header' to 'column_header' and tags merged-empty cells as 'layout'; 'row_header' is reserved for producers that can distinguish row vs column headers.",
           "enum": [
             "data",
             "column_header",
@@ -430,7 +430,7 @@
     },
     "UnknownBlock": {
       "additionalProperties": true,
-      "description": "Forward-compatibility catch-all.\n\nPydantic V2 string discriminator 는 미지의 ``kind`` 를 만나면\n``union_tag_invalid`` 로 문서 전체 파싱을 거부한다. v0.3.0 에서 ``PictureBlock``\n등 새 variant 가 추가될 때 v0.2.0 소비자가 읽기-불가 상태가 되는 것을\n방지하기 위해 callable Discriminator 로 미지 ``kind`` 를 본 variant 로 라우팅.\n\n소비자는 ``case UnknownBlock(): skip`` 패턴을 사용한다. ``assert_never``\n패턴은 새 variant 추가 시 builds 가 깨지므로 **사용 금지**.",
+      "description": "Forward-compatibility catch-all.\n\nPydantic V2 의 기본 string discriminator 는 미지의 ``kind`` 를 만나면\n``union_tag_invalid`` 로 문서 전체 파싱을 거부한다. callable Discriminator\n로 미지 ``kind`` 를 본 variant 로 라우팅하여, 나중에 새로운 블록 타입이\n추가되어도 구 버전 소비자가 읽기-불가 상태가 되지 않게 한다.\n\n소비자는 ``case UnknownBlock(): skip`` 패턴을 사용한다. ``assert_never``\n패턴은 새 variant 추가 시 빌드가 깨지므로 **사용 금지**.",
       "properties": {
         "kind": {
           "title": "Kind",

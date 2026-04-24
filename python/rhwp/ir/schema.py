@@ -1,18 +1,16 @@
-"""rhwp.ir.schema — Document IR v1 JSON Schema export / load.
+"""rhwp.ir.schema — Document IR JSON Schema export / load.
 
-3-way 배포 (ir.md §JSON Schema 공개):
+배포 경로:
 
 1. **In-package** (1차) — ``python/rhwp/ir/schema/hwp_ir_v1.json``.
    ``load_schema()`` 가 ``importlib.resources`` 로 로드하므로 네트워크 불필요.
 2. **GitHub Pages** (공개 URL) — ``danmeon.github.io/rhwp-python/schema/hwp_ir/v1/schema.json``.
    ``$id`` 에 하드코딩. CI (`.github/workflows/publish-schema.yml`) 가 배포.
-3. **Content-addressed alias** / **SchemaStore catalog** — v0.2.0 GA 이후.
 
 LLM Structured Outputs strict mode 는 "모든 property required + top-level
-additionalProperties false" 를 요구한다. 우리 스키마는 ``extra="forbid"`` 로
-후자는 충족하지만, Pydantic V2 기본 동작상 default 값 있는 필드는 required
-에서 제외된다. Strict 호환 변환은 v0.3.0+ 에서 ``export_schema(strict=True)``
-옵션으로 추가 검토한다 (ir.md §Pydantic V2 / JSON Schema 제약).
+additionalProperties false" 를 요구한다. 본 스키마는 ``extra="forbid"`` 로
+후자는 충족하지만 Pydantic V2 기본 동작상 default 값 있는 필드는 required
+에서 제외되므로, strict 프로필이 필요한 소비자는 후처리가 필요하다.
 """
 
 import json

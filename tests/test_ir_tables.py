@@ -95,6 +95,25 @@ def test_table_cells_have_valid_coordinates(parsed_hwpx: rhwp.Document):
             assert cell.role in ("data", "column_header", "row_header", "layout")
 
 
+def test_layout_role_on_merged_empty_cells(parsed_hwpx: rhwp.Document):
+    """병합된 빈 셀은 ``role="layout"`` 으로 태깅된다.
+
+    병합되지 않은 빈 셀은 ``role="data"`` 를 유지한다 — empty data cell 과의
+    혼동을 피하기 위한 보수적 heuristic.
+    """
+    ir = parsed_hwpx.to_ir()
+    layout_cells = []
+    for t in (b for b in ir.body if isinstance(b, TableBlock)):
+        for cell in t.cells:
+            if cell.role == "layout":
+                layout_cells.append(cell)
+                assert cell.row_span > 1 or cell.col_span > 1
+                for blk in cell.blocks:
+                    if isinstance(blk, ParagraphBlock):
+                        assert not blk.text.strip()
+    assert layout_cells, "expected at least one merged-empty cell in table-vpos-01.hwpx sample"
+
+
 def test_table_cells_blocks_are_paragraph_or_table(parsed_hwpx: rhwp.Document):
     """TableCell.blocks 는 ParagraphBlock 또는 TableBlock (중첩 표) 만."""
     ir = parsed_hwpx.to_ir()
@@ -110,7 +129,7 @@ def test_table_cells_blocks_are_paragraph_or_table(parsed_hwpx: rhwp.Document):
 def test_table_block_shares_provenance_with_paragraph(parsed_hwpx: rhwp.Document):
     """각 TableBlock 은 직전에 있는 ParagraphBlock 과 section_idx + para_idx 를 공유.
 
-    S3 평탄화 규칙 "ParagraphBlock 1 + 포함 표마다 TableBlock" 의 검증.
+    평탄화 규칙 "Paragraph → [ParagraphBlock, TableBlock...]" 의 Provenance 검증.
     """
     ir = parsed_hwpx.to_ir()
     last_para_prov = None
