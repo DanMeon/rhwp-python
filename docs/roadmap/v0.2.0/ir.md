@@ -102,7 +102,7 @@ v0.2.0 의 원안은 `rhwp` 커맨드라인 도구 제공이었으나(`docs/road
 HwpDocument (root)
 ├── schema_name: Literal["HwpDocument"]
 ├── schema_version: Literal["1.0"]             # 인스턴스 버전 추적
-├── source                                     # Provenance — 원본 경로/해시
+├── source: DocumentSource | None              # 문서 출처 (uri) — RAG 역추적
 ├── metadata: DocumentMetadata                 # 제목/작성자/생성일 등
 ├── sections: list[Section]                    # 구역(용지·단 정의 포함)
 │
@@ -121,6 +121,7 @@ HwpDocument (root)
 v0.2.0 에서 구현 완료되는 구체 타입:
 
 - `HwpDocument` — 문서 루트 (`schema_name`/`schema_version`/`source?`/`metadata`/`sections`/`body`/`furniture`)
+- `DocumentSource` — 문서 출처. `uri: str` 만 필수 (파일 경로·URL·custom 식별자). `format`/`bytes_size`/`sha256` 등 재현성 필드는 기본값 있는 옵셔널로 향후 MINOR 확장. `rhwp.parse(path)` 경로는 `uri` 에 원본 path 를 그대로 기록 (normalize 미수행 — 소비자 책임). **LLM Strict-mode 주의**: `HwpDocument.source` 는 기본값 `null` 을 가지므로 Pydantic 이 root `required` 에 올리지 않는다. OpenAI Structured Outputs `strict=true` 소비자는 (a) `source` 를 root `required` 에 명시 추가 + (b) `anyOf: [$ref, null]` → 동일 형태 유지하되 `required` 재계산, 후처리가 필요하다. 옵셔널 필드가 추가될수록 동일 패턴이 반복된다
 - `DocumentMetadata` — `title`/`author`/`creation_time`/`modification_time` — 전부 `str | None`. S2 에서 `datetime` 교체는 MINOR 호환 (optional 필드 타입 확장)
 - `Section` — v0.2.0 S1 은 `section_idx: int` 만. 용지·단·헤더 레퍼런스는 S2 Rust 매핑 시점에 MINOR 확장
 - `ParagraphBlock` — 단락, `kind="paragraph"` + `text`/`inlines: list[InlineRun]`/`prov`

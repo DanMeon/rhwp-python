@@ -14,10 +14,12 @@ Fixture (``aift.hwp``, ``table-vpos-01.hwpx``) 로 실제 문서 → ``to_ir()``
 Table 전용 검증은 ``test_ir_tables.py``.
 """
 
+from pathlib import Path
+
 import pytest
 import rhwp
 from pydantic import ValidationError
-from rhwp.ir.nodes import HwpDocument, ParagraphBlock, TableBlock
+from rhwp.ir.nodes import DocumentSource, HwpDocument, ParagraphBlock, TableBlock
 
 # * 반환 타입 / 캐시
 
@@ -205,3 +207,53 @@ def test_metadata_fields_are_none(parsed_hwp: rhwp.Document):
     assert md.author is None
     assert md.creation_time is None
     assert md.modification_time is None
+
+
+# * source — rhwp.parse(path) 경로는 uri 에 원본 경로를 기록한다
+
+
+def test_source_uri_matches_parse_path(parsed_hwp: rhwp.Document, hwp_sample: Path):
+    """rhwp.parse(str(path)) 경로는 `HwpDocument.source.uri == str(path)` 를 보장한다.
+
+    RAG 응답 역추적 경로. normalize 는 수행하지 않는다 — 소비자 책임.
+    """
+    ir = parsed_hwp.to_ir()
+    assert isinstance(ir.source, DocumentSource)
+    assert ir.source.uri == str(hwp_sample)
+
+
+def test_source_uri_matches_parse_path_hwpx(parsed_hwpx: rhwp.Document, hwpx_sample: Path):
+    """HWPX 경로도 동일 계약."""
+    ir = parsed_hwpx.to_ir()
+    assert isinstance(ir.source, DocumentSource)
+    assert ir.source.uri == str(hwpx_sample)
+
+
+def test_document_source_uri_property(parsed_hwp: rhwp.Document, hwp_sample: Path):
+    """``Document.source_uri`` getter 는 IR 생성 없이도 출처를 조회할 수 있어야 한다."""
+    assert parsed_hwp.source_uri == str(hwp_sample)
+
+
+def test_hwp_document_direct_construction_allows_null_source():
+    """Python 소비자가 IR 을 직접 구성하는 경로 (loader 등) — source=None 허용."""
+    ir = HwpDocument()
+    assert ir.source is None
+    assert ir.schema_name == "HwpDocument"
+    assert ir.schema_version == "1.0"
+
+
+def test_hwp_document_json_null_source_roundtrip():
+    """source=None 상태의 JSON 도 Pydantic 재파싱 가능 — forward-compat 경로."""
+    import json
+
+    original = HwpDocument()
+    dumped = original.model_dump_json()
+    parsed = HwpDocument.model_validate(json.loads(dumped))
+    assert parsed.source is None
+
+
+def test_document_source_is_frozen():
+    """``DocumentSource`` 는 ``frozen=True`` — 재할당은 ValidationError 로 거부."""
+    src = DocumentSource(uri="file:///tmp/example.hwp")
+    with pytest.raises(ValidationError):
+        src.uri = "file:///tmp/other.hwp"  # type: ignore[misc]

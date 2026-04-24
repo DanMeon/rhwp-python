@@ -11,6 +11,8 @@ use crate::ir;
 #[pyclass(name = "Document", module = "rhwp", unsendable)]
 pub struct PyDocument {
     pub(crate) inner: rhwp::document_core::DocumentCore,
+    // ^ 생성자에 전달된 파일 경로 — IR `DocumentSource.uri` 로 전파. RAG 응답 역추적 경로.
+    source_uri: Option<String>,
     // ^ 첫 to_ir() 호출 시 1회 구성, 이후 재사용. unsendable 단일-스레드 보장 덕에 lock 불필요
     ir_cache: OnceCell<Py<PyAny>>,
 }
@@ -27,13 +29,21 @@ impl PyDocument {
     fn new(py: Python<'_>, path: &str) -> PyResult<Self> {
         // ^ py.detach 로 파일 I/O + 파싱 동안 GIL 해제 (DocumentCore 는 클로저 내부에서만 생성)
         let path_owned = path.to_owned();
+        let source_uri = path_owned.clone();
         let doc = py
             .detach(move || load_document(path_owned))
             .map_err(parse_error_to_py)?;
         Ok(PyDocument {
             inner: doc,
+            source_uri: Some(source_uri),
             ir_cache: OnceCell::new(),
         })
+    }
+
+    #[getter]
+    fn source_uri(&self) -> Option<&str> {
+        // ^ IR 을 만들지 않고도 출처 확인 가능 — 관찰성·디버깅용. to_ir() 후의 ir.source.uri 와 동일 값
+        self.source_uri.as_deref()
     }
 
     #[getter]
@@ -146,7 +156,7 @@ impl PyDocument {
         if let Some(cached) = self.ir_cache.get() {
             return Ok(cached.clone_ref(py));
         }
-        let ir = ir::build_hwp_document(py, self.inner.document())?;
+        let ir = ir::build_hwp_document(py, self.inner.document(), self.source_uri.as_deref())?;
         self.ir_cache
             .set(ir)
             .expect("ir_cache was empty just above");

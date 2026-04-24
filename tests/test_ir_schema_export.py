@@ -42,7 +42,7 @@ def test_export_schema_root_additional_properties_false():
 
 
 def test_export_schema_defs_are_exactly_the_known_nodes():
-    """`$defs` 는 HwpDocument (root) 를 제외한 9개 노드 정확히 일치.
+    """`$defs` 는 HwpDocument (root) 를 제외한 10개 노드 정확히 일치.
 
     새 block variant 가 v0.3.0+ 에 추가되면 이 set 도 갱신해야 한다 — 의도적인
     강한 계약으로 스키마 형상 회귀를 조기에 탐지한다.
@@ -53,6 +53,7 @@ def test_export_schema_defs_are_exactly_the_known_nodes():
         "Provenance",
         "InlineRun",
         "DocumentMetadata",
+        "DocumentSource",
         "Section",
         "ParagraphBlock",
         "TableBlock",

@@ -22,15 +22,35 @@ static HWP_DOCUMENT_CLASS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 ///
 /// 호출 경로 전체가 GIL 유지 구간에서 실행된다 — dict 생성과 Pydantic 호출 모두
 /// Python heap 접근을 요구하기 때문.
-pub fn build_hwp_document(py: Python<'_>, doc: &Document) -> PyResult<Py<PyAny>> {
-    let raw = build_document_dict(py, doc)?;
+///
+/// `source_uri` 는 `HwpDocument.source.uri` 로 주입된다 — 파일 경로/URL/custom 식별자.
+/// `None` 이면 `source` 가 `None` 으로 남는다 (메모리 bytes 파싱 등 출처 불명 경로).
+pub fn build_hwp_document(
+    py: Python<'_>,
+    doc: &Document,
+    source_uri: Option<&str>,
+) -> PyResult<Py<PyAny>> {
+    let raw = build_document_dict(py, doc, source_uri)?;
     let hwp_class = HWP_DOCUMENT_CLASS.import(py, "rhwp.ir.nodes", "HwpDocument")?;
     let ir = hwp_class.call_method1("model_validate", (raw,))?;
     Ok(ir.unbind())
 }
 
-fn build_document_dict<'py>(py: Python<'py>, doc: &Document) -> PyResult<Bound<'py, PyDict>> {
+fn build_document_dict<'py>(
+    py: Python<'py>,
+    doc: &Document,
+    source_uri: Option<&str>,
+) -> PyResult<Bound<'py, PyDict>> {
     let dict = PyDict::new(py);
+
+    match source_uri {
+        Some(uri) => {
+            let source = PyDict::new(py);
+            source.set_item("uri", uri)?;
+            dict.set_item("source", source)?;
+        }
+        None => dict.set_item("source", py.None())?,
+    }
 
     let metadata = PyDict::new(py);
     metadata.set_item("title", py.None())?;

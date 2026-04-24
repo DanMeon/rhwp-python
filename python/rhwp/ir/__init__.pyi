@@ -10,6 +10,9 @@ from rhwp.ir.nodes import (
     DocumentMetadata as DocumentMetadata,
 )
 from rhwp.ir.nodes import (
+    DocumentSource as DocumentSource,
+)
+from rhwp.ir.nodes import (
     Furniture as Furniture,
 )
 from rhwp.ir.nodes import (
@@ -56,6 +59,7 @@ __all__ = [
     "CURRENT_SCHEMA_VERSION",
     "Block",
     "DocumentMetadata",
+    "DocumentSource",
     "Furniture",
     "HwpDocument",
     "InlineRun",

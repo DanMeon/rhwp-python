@@ -40,6 +40,9 @@ class Document:
     직접 생성자를 호출하거나 :func:`parse` 를 사용할 수 있다.
     """
 
+    source_uri: str | None
+    """생성자에 전달된 원본 경로. IR 의 ``source.uri`` 와 동일 값 — IR 을 생성하지 않고도 출처 조회 가능."""
+
     section_count: int
     """섹션 수."""
 

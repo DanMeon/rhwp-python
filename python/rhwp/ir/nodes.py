@@ -22,6 +22,7 @@ __all__ = [
     "CURRENT_SCHEMA_VERSION",
     "Block",
     "DocumentMetadata",
+    "DocumentSource",
     "Furniture",
     "HwpDocument",
     "InlineRun",
@@ -86,7 +87,33 @@ class InlineRun(BaseModel):
     strikethrough: bool = False
     href: str | None = None
     ruby: str | None = None
-    raw_style_id: int | None = None
+    raw_style_id: int | None = Field(
+        default=None,
+        description=(
+            "Upstream doc_info 스타일 인덱스. 폰트/크기/색상 등 non-binary 서식을 escape 한다. "
+            "None 은 char_shape 레코드가 없는 손상/비정상 입력 방어 경로 — "
+            "정상 HWP 는 모든 런이 char_shape 에 대응되어 항상 값이 채워진다."
+        ),
+    )
+
+
+class DocumentSource(BaseModel):
+    """문서 출처 — RAG 응답 역추적 시 "이 답이 어느 파일에서 나왔나" 에 응답한다.
+
+    스키마는 ``uri`` 형식을 강제하지 않으므로 소비자가 file://, https://, 혹은
+    ``mem://{hash}`` 같은 custom 스킴으로 정규화할 수 있다. 향후 ``format``,
+    ``bytes_size``, ``sha256`` 등 재현성 필드는 기본값 있는 옵셔널로만 추가 —
+    이 경로는 기존 JSON 과 MINOR 호환 유지.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    uri: str = Field(
+        description=(
+            "파일 시스템 경로, URL, 혹은 소비자 정의 식별자. "
+            "RFC 3986 URI reference 로 해석 가능한 문자열이면 충분하다."
+        ),
+    )
 
 
 class DocumentMetadata(BaseModel):
@@ -206,7 +233,9 @@ def _block_discriminator(v: Any) -> str:
 
 
 Block = Annotated[
-    Annotated[ParagraphBlock, Tag("paragraph")] | Annotated[TableBlock, Tag("table")] | Annotated[UnknownBlock, Tag("unknown")],
+    Annotated[ParagraphBlock, Tag("paragraph")]
+    | Annotated[TableBlock, Tag("table")]
+    | Annotated[UnknownBlock, Tag("unknown")],
     Discriminator(_block_discriminator),
 ]
 
@@ -235,7 +264,7 @@ class HwpDocument(BaseModel):
 
     schema_name: Annotated[str, StringConstraints(pattern=r"^HwpDocument$")] = "HwpDocument"
     schema_version: SchemaVersion = CURRENT_SCHEMA_VERSION
-    source: Provenance | None = None
+    source: DocumentSource | None = None
     metadata: DocumentMetadata = Field(default_factory=DocumentMetadata)
     sections: list[Section] = Field(default_factory=list)
     body: list["Block"] = Field(default_factory=list)
