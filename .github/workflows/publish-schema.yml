@@ -1,0 +1,90 @@
+name: Publish JSON Schema
+
+# Document IR v1 JSON Schema 를 GitHub Pages 로 배포.
+# 불변 경로 정책 (ir.md §JSON Schema 공개): v1 URL 영구 보존.
+# Breaking change 는 v2/schema.json 새 URL 로 (v1 덮어쓰기 금지).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'python/rhwp/ir/schema/hwp_ir_v1.json'
+      - 'python/rhwp/ir/nodes.py'
+      - 'python/rhwp/ir/schema.py'
+      - '.github/workflows/publish-schema.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  # * 코드 변경이 in-package JSON 과 sync 되는지 검증 (CI 가드)
+  verify-sync:
+    name: Verify schema sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --no-install-project --group testing
+      - run: uv run maturin develop --release
+      - name: Regenerate schema and diff against checked-in file
+        run: |
+          uv run python -m rhwp.ir.schema > /tmp/regenerated.json
+          diff -u python/rhwp/ir/schema/hwp_ir_v1.json /tmp/regenerated.json
+
+  # * GitHub Pages 배포 — v1 경로 불변
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: verify-sync
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare pages directory — copy every versioned schema
+        # ^ 불변 경로 정책: repo 의 hwp_ir_v*.json 을 모두 각 버전 URL 로 배포.
+        #   v2 도입 시 python/rhwp/ir/schema/hwp_ir_v2.json 을 추가하기만 하면
+        #   이 루프가 자동으로 v1/v2 양쪽 모두를 pages 아티팩트에 포함한다.
+        #   `actions/deploy-pages@v4` 의 replace-all 동작으로 v1 이 누락되는 것을 원천 차단.
+        run: |
+          set -euo pipefail
+          mkdir -p pages/schema/hwp_ir
+          shopt -s nullglob
+          copied=0
+          for f in python/rhwp/ir/schema/hwp_ir_v*.json; do
+            name=$(basename "$f" .json)          # hwp_ir_v1, hwp_ir_v2, ...
+            ver="${name#hwp_ir_}"                # v1, v2, ...
+            mkdir -p "pages/schema/hwp_ir/$ver"
+            cp "$f" "pages/schema/hwp_ir/$ver/schema.json"
+            echo "Published $f -> pages/schema/hwp_ir/$ver/schema.json"
+            copied=$((copied + 1))
+          done
+          if [ "$copied" -eq 0 ]; then
+            echo "::error::no hwp_ir_v*.json files found under python/rhwp/ir/schema/"
+            exit 1
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+# v2 추가 절차 (breaking change 발생 시):
+# 1) python/rhwp/ir/schema/hwp_ir_v2.json 생성 (v1 파일은 절대 수정 금지)
+# 2) SCHEMA_ID 를 v2 URL 로 점프, 새 CURRENT_SCHEMA_VERSION 설정
+# 3) 본 워크플로우 변경 불필요 — 위 루프가 v1/v2 모두 자동 배포
+# 4) SchemaStore catalog 에 v2 URL 을 alongside 등록 (v1 entry 는 legacy 로 유지)

@@ -120,14 +120,14 @@ HwpDocument (root)
 
 v0.2.0 에서 구현 완료되는 구체 타입:
 
-- `HwpDocument` — 문서 루트
-- `DocumentMetadata` — 제목/작성자/생성일시
-- `Section` — HWP 구역 (용지 방향, 단 수, 머리글/꼬리말 정의 참조)
-- `ParagraphBlock` — 단락, `inlines: list[InlineRun]`
-- `InlineRun` — 서식이 동일한 텍스트 런 (bold/italic/href/ruby + `raw_style_id`)
-- `TableBlock` — 표, `rows/cols/cells/html/caption`
-- `TableCell` — 셀, `row/col/row_span/col_span/blocks/role`
-- `Provenance` — 원본 위치 (section_idx, para_idx, char_start, char_end, page_range?)
+- `HwpDocument` — 문서 루트 (`schema_name`/`schema_version`/`source?`/`metadata`/`sections`/`body`/`furniture`)
+- `DocumentMetadata` — `title`/`author`/`creation_time`/`modification_time` — 전부 `str | None`. S2 에서 `datetime` 교체는 MINOR 호환 (optional 필드 타입 확장)
+- `Section` — v0.2.0 S1 은 `section_idx: int` 만. 용지·단·헤더 레퍼런스는 S2 Rust 매핑 시점에 MINOR 확장
+- `ParagraphBlock` — 단락, `kind="paragraph"` + `text`/`inlines: list[InlineRun]`/`prov`
+- `InlineRun` — 서식이 동일한 텍스트 런 (bold/italic/underline/strikethrough/href/ruby + `raw_style_id`)
+- `TableBlock` — 표, `kind="table"` + `rows/cols/cells/html/text/caption?/prov`. `caption: str | None` — 복합 캡션(캡션 안의 블록)은 v0.3.0+ 로 이월
+- `TableCell` — 셀, `row/col/row_span=1/col_span=1/grid_index/role/blocks: list[Block]`
+- `Provenance` — 원본 위치 (`section_idx`, `para_idx`, `char_start?`, `char_end?`, `page_range?` — 모두 codepoint 단위)
 
 v0.2.0 에서 enum 에만 선언하고 v0.3.0+ 에서 구현:
 

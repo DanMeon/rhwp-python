@@ -6,7 +6,7 @@ from typing import Literal
 from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
 
-LoadMode = Literal["single", "paragraph"]
+LoadMode = Literal["single", "paragraph", "ir-blocks"]
 
 class HwpLoader(BaseLoader):
     path: str

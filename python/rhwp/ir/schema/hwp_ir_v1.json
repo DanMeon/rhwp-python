@@ -1,0 +1,516 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://danmeon.github.io/rhwp-python/schema/hwp_ir/v1/schema.json",
+  "$defs": {
+    "DocumentMetadata": {
+      "additionalProperties": false,
+      "description": "문서 레벨 메타데이터. v0.2.0 은 ``str | None`` 으로만 노출한다.\n\n``creation_time`` / ``modification_time`` 은 S2 Rust 매퍼에서 ISO 8601\n문자열로 출고한다. v0.3.0 에서 ``datetime`` 타입 교체는 MINOR 호환\n(optional 필드 타입 확장) 범위 — 현 시점은 JSON 직렬화 친화성이 우선.",
+      "properties": {
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "author": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Author"
+        },
+        "creation_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Creation Time"
+        },
+        "modification_time": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Modification Time"
+        }
+      },
+      "title": "DocumentMetadata",
+      "type": "object"
+    },
+    "Furniture": {
+      "additionalProperties": false,
+      "description": "장식 노드 컨테이너 — RAG 가 임베딩에서 필터링 가능.\n\nv0.2.0 S1 은 빈 리스트만 출고 — 머리글/꼬리말 **본문** 노드 파싱은 v0.3.0+.",
+      "properties": {
+        "page_headers": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ParagraphBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/UnknownBlock"
+              }
+            ]
+          },
+          "title": "Page Headers",
+          "type": "array"
+        },
+        "page_footers": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ParagraphBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/UnknownBlock"
+              }
+            ]
+          },
+          "title": "Page Footers",
+          "type": "array"
+        },
+        "footnotes": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ParagraphBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/UnknownBlock"
+              }
+            ]
+          },
+          "title": "Footnotes",
+          "type": "array"
+        }
+      },
+      "title": "Furniture",
+      "type": "object"
+    },
+    "InlineRun": {
+      "additionalProperties": false,
+      "description": "서식이 동일한 연속 문자 런.\n\nbold/italic/underline/strikethrough/href/ruby 외의 서식 속성 (폰트, 크기,\n색상 등) 은 ``raw_style_id`` 로 escape 된다 — 상류 ``doc_info`` 스타일 인덱스.",
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "bold": {
+          "default": false,
+          "title": "Bold",
+          "type": "boolean"
+        },
+        "italic": {
+          "default": false,
+          "title": "Italic",
+          "type": "boolean"
+        },
+        "underline": {
+          "default": false,
+          "title": "Underline",
+          "type": "boolean"
+        },
+        "strikethrough": {
+          "default": false,
+          "title": "Strikethrough",
+          "type": "boolean"
+        },
+        "href": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Href"
+        },
+        "ruby": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ruby"
+        },
+        "raw_style_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Style Id"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "InlineRun",
+      "type": "object"
+    },
+    "ParagraphBlock": {
+      "additionalProperties": false,
+      "description": "단락 블록. 서식 런 리스트 + 평탄 텍스트 파생 필드를 병기한다.\n\n``text`` 는 ``inlines`` 의 ``text`` 필드를 이어붙인 결과 — LLM 에 넘기는\n평문화 경로. 원본 서식 보존이 필요한 소비자만 ``inlines`` 를 직접 순회한다.",
+      "properties": {
+        "kind": {
+          "const": "paragraph",
+          "default": "paragraph",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "inlines": {
+          "items": {
+            "$ref": "#/$defs/InlineRun"
+          },
+          "title": "Inlines",
+          "type": "array"
+        },
+        "prov": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "prov"
+      ],
+      "title": "ParagraphBlock",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "블록의 원본 문서 내 위치. 다운스트림 청커가 원본을 역추적 가능하게 한다.",
+      "properties": {
+        "section_idx": {
+          "title": "Section Idx",
+          "type": "integer"
+        },
+        "para_idx": {
+          "title": "Para Idx",
+          "type": "integer"
+        },
+        "char_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Start character index (Unicode codepoints, 0-indexed). Compatible with Python str slicing: text[char_start:char_end].",
+          "title": "Char Start"
+        },
+        "char_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "End character index (Unicode codepoints, 0-indexed, exclusive).",
+          "title": "Char End"
+        },
+        "page_range": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Inclusive (start_page, end_page). v0.2.0 은 None 출고 — 페이지 경계는 상류 코어의 렌더 단계에서만 계산된다.",
+          "title": "Page Range"
+        }
+      },
+      "required": [
+        "section_idx",
+        "para_idx"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Section": {
+      "additionalProperties": false,
+      "description": "HWP 구역.\n\nv0.2.0 S1 은 ``section_idx`` 만 노출. 용지 크기·방향·단 수·머리글/꼬리말\n레퍼런스는 S2 Rust 매핑 시점에 MINOR 호환 확장으로 추가한다.",
+      "properties": {
+        "section_idx": {
+          "title": "Section Idx",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "section_idx"
+      ],
+      "title": "Section",
+      "type": "object"
+    },
+    "TableBlock": {
+      "additionalProperties": false,
+      "description": "표 블록. 단일 표현으로 RAG 품질 최대화 불가 → 3중 표현 병기.\n\n- ``cells`` : 프로그래매틱 접근 (SQL 생성, 셀 순회)\n- ``html``  : LLM 에 제공, rowspan/colspan 보존 (HtmlRAG 호환)\n- ``text``  : 단순 검색·diff 용 폴백 (행은 개행, 셀은 탭 구분)",
+      "properties": {
+        "kind": {
+          "const": "table",
+          "default": "table",
+          "title": "Kind",
+          "type": "string"
+        },
+        "rows": {
+          "title": "Rows",
+          "type": "integer"
+        },
+        "cols": {
+          "title": "Cols",
+          "type": "integer"
+        },
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/TableCell"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "html": {
+          "default": "",
+          "title": "Html",
+          "type": "string"
+        },
+        "text": {
+          "default": "",
+          "title": "Text",
+          "type": "string"
+        },
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caption"
+        },
+        "prov": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "rows",
+        "cols",
+        "prov"
+      ],
+      "title": "TableBlock",
+      "type": "object"
+    },
+    "TableCell": {
+      "additionalProperties": false,
+      "description": "표 셀. ``blocks`` 가 재귀 ``Block`` 리스트라 중첩 표를 자연 지원한다.\n\n``role`` 어휘는 DocLayNet 파생 — ``\"layout\"`` 은 간격용 빈 셀 등 비의미 셀\n로 RAG 가 필터링할 수 있도록 한다 (ir.md §테이블 표현).",
+      "properties": {
+        "row": {
+          "title": "Row",
+          "type": "integer"
+        },
+        "col": {
+          "title": "Col",
+          "type": "integer"
+        },
+        "row_span": {
+          "default": 1,
+          "title": "Row Span",
+          "type": "integer"
+        },
+        "col_span": {
+          "default": 1,
+          "title": "Col Span",
+          "type": "integer"
+        },
+        "grid_index": {
+          "description": "Anchor cell position in row-major flat index (row * table.cols + col). Not a reverse-lookup key; span-covered positions do not appear as separate cells.",
+          "title": "Grid Index",
+          "type": "integer"
+        },
+        "role": {
+          "default": "data",
+          "description": "DocLayNet-derived role vocabulary. HWP does not distinguish column vs row headers, so v0.2.0 maps is_header → 'column_header' and leaves 'row_header' / 'layout' as valid enum values for producers that can identify them (e.g. future heuristics or user annotation layers).",
+          "enum": [
+            "data",
+            "column_header",
+            "row_header",
+            "layout"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "blocks": {
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ParagraphBlock"
+              },
+              {
+                "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/UnknownBlock"
+              }
+            ]
+          },
+          "title": "Blocks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "row",
+        "col",
+        "grid_index"
+      ],
+      "title": "TableCell",
+      "type": "object"
+    },
+    "UnknownBlock": {
+      "additionalProperties": true,
+      "description": "Forward-compatibility catch-all.\n\nPydantic V2 string discriminator 는 미지의 ``kind`` 를 만나면\n``union_tag_invalid`` 로 문서 전체 파싱을 거부한다. v0.3.0 에서 ``PictureBlock``\n등 새 variant 가 추가될 때 v0.2.0 소비자가 읽기-불가 상태가 되는 것을\n방지하기 위해 callable Discriminator 로 미지 ``kind`` 를 본 variant 로 라우팅.\n\n소비자는 ``case UnknownBlock(): skip`` 패턴을 사용한다. ``assert_never``\n패턴은 새 variant 추가 시 builds 가 깨지므로 **사용 금지**.",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string",
+          "not": {
+            "enum": [
+              "paragraph",
+              "table"
+            ]
+          }
+        },
+        "prov": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "kind",
+        "prov"
+      ],
+      "title": "UnknownBlock",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Document IR 루트.\n\n``schema_name`` / ``schema_version`` 으로 인스턴스 자기-기술. body 와\nfurniture 를 분리해 RAG 가 장식 노드를 필터링할 수 있다.",
+  "properties": {
+    "schema_name": {
+      "default": "HwpDocument",
+      "pattern": "^HwpDocument$",
+      "title": "Schema Name",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Provenance"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "metadata": {
+      "$ref": "#/$defs/DocumentMetadata"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/Section"
+      },
+      "title": "Sections",
+      "type": "array"
+    },
+    "body": {
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ParagraphBlock"
+          },
+          {
+            "$ref": "#/$defs/TableBlock"
+          },
+          {
+            "$ref": "#/$defs/UnknownBlock"
+          }
+        ]
+      },
+      "title": "Body",
+      "type": "array"
+    },
+    "furniture": {
+      "$ref": "#/$defs/Furniture"
+    }
+  },
+  "title": "HwpDocument",
+  "type": "object"
+}

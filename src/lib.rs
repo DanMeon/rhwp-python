@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 
 mod document;
 mod errors;
+mod ir;
 mod version;
 
 use document::PyDocument;

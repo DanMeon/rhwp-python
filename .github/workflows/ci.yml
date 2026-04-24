@@ -66,7 +66,10 @@ jobs:
           uv run pyright python/ \
             tests/test_smoke.py tests/test_parse.py tests/test_text_extraction.py \
             tests/test_errors.py tests/test_svg_rendering.py tests/test_pdf_rendering.py \
-            tests/test_langchain_loader.py tests/conftest.py tests/type_check_samples.py
+            tests/test_langchain_loader.py tests/test_langchain_loader_ir.py \
+            tests/test_ir_schema.py tests/test_ir_roundtrip.py tests/test_ir_tables.py \
+            tests/test_ir_iter_blocks.py tests/test_ir_schema_export.py \
+            tests/conftest.py tests/type_check_samples.py
       - name: Run pyright (intentional errors — expect 4)
         if: matrix.lint
         run: |
@@ -120,11 +123,13 @@ jobs:
           uv venv
           uv pip install pytest
       - run: uv run maturin develop --release
-      - name: Run pytest — langchain tests must auto-skip via importorskip
-        # ^ 파일-레벨 importorskip 은 해당 파일 전체를 skip 1개로 카운트
+      - name: Run pytest — extras-gated tests must auto-skip via importorskip
+        # ^ 파일-레벨 importorskip 은 해당 파일 전체를 skip 1개로 카운트.
+        #   현재 gated 파일: test_langchain_loader.py + test_langchain_loader_ir.py
+        #   (langchain-core), test_ir_schema_export.py (jsonschema) → 총 3 파일
         run: |
           uv run pytest tests/ -m "not slow" -v | tee pytest-output.txt
-          if ! grep -qE '(^|[^0-9])1 skipped([^0-9]|$)' pytest-output.txt; then
-            echo "::error::expected test_langchain_loader.py to auto-skip via importorskip"
+          if ! grep -qE '(^|[^0-9])3 skipped([^0-9]|$)' pytest-output.txt; then
+            echo "::error::expected 3 extras-gated files to auto-skip via importorskip (langchain×2, jsonschema)"
             exit 1
           fi

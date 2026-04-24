@@ -35,6 +35,10 @@ classifiers = [
 ]
 keywords = ["hwp", "hwpx", "hancom", "korean", "document", "parser"]
 dynamic = ["version"]
+# ^ Document IR (v0.2.0+) 은 Pydantic V2 기반 공개 모델 — callable Discriminator 는 2.5+ 도입
+dependencies = [
+    "pydantic>=2.5,<3",
+]
 
 [project.urls]
 Homepage = "https://github.com/DanMeon/rhwp-python"
@@ -59,6 +63,8 @@ testing = [
     "pytest-cov",
     "langchain-core>=0.2",
     "langchain-text-splitters>=0.2",
+    # ^ JSON Schema meta-validation (tests/test_ir_schema_export.py)
+    "jsonschema>=4",
 ]
 linting = [
     {include-group = "dev"},
@@ -79,6 +85,9 @@ features = ["pyo3/extension-module"]
 include = [
     { path = "python/rhwp/py.typed", format = "wheel" },
     { path = "python/rhwp/**/*.pyi", format = "wheel" },
+    # ^ Document IR v1 JSON Schema — in-package 1차 배포 (ir.md §JSON Schema 공개)
+    { path = "python/rhwp/ir/schema/*.json", format = "wheel" },
+    { path = "python/rhwp/ir/schema/*.json", format = "sdist" },
 ]
 # ^ path dep vendoring 시 submodule 하위의 개발 아티팩트가 sdist 에 끼어드는 것을 방어
 exclude = [

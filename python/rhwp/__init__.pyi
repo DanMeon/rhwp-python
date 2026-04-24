@@ -1,5 +1,7 @@
 """rhwp — HWP/HWPX parser and renderer (Korean word processor format)."""
 
+from rhwp.ir.nodes import HwpDocument as _HwpDocument
+
 __all__ = [
     "Document",
     "parse",
@@ -119,6 +121,31 @@ class Document:
         Raises:
             OSError: 파일 쓰기 실패.
             ValueError: 렌더링 실패.
+        """
+        ...
+
+    def to_ir(self) -> _HwpDocument:
+        """문서를 Document IR (Pydantic ``HwpDocument``) 로 변환.
+
+        첫 호출 시 문서 트리를 순회하며 IR 을 구성한다 (10MB HWP 기준 50-200ms).
+        결과는 인스턴스 내부에 캐시되어 재호출은 즉시 반환된다. IR 모델은
+        ``frozen=True`` 이므로 반환 객체 수정 시 ``ValidationError`` 가 발생한다.
+        독립 사본이 필요하면 ``ir.model_copy(deep=True)`` 를 사용한다.
+
+        Raises:
+            pydantic.ValidationError: 내부 구조가 스키마와 불일치할 때 (상류 버그 시).
+            ImportError: ``rhwp.ir.nodes`` 모듈 로드 실패 시.
+        """
+        ...
+
+    def to_ir_json(self, *, indent: int | None = None) -> str:
+        """IR 을 JSON 문자열로 반환. ``to_ir()`` 캐시를 공유한다.
+
+        Args:
+            indent: 들여쓰기 칸 수 (None 이면 한 줄 직렬화).
+
+        Raises:
+            pydantic.ValidationError: IR 변환 중 스키마 불일치가 발생할 때.
         """
         ...
 

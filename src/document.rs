@@ -1,13 +1,18 @@
+use std::cell::OnceCell;
+
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyDict};
 
 use crate::errors::{parse_error_to_py, ParseError};
+use crate::ir;
 
 // ^ unsendable: DocumentCore 내부 RefCell 필드로 !Sync — 다른 스레드 접근 시 런타임 패닉 방어
 #[pyclass(name = "Document", module = "rhwp", unsendable)]
 pub struct PyDocument {
     pub(crate) inner: rhwp::document_core::DocumentCore,
+    // ^ 첫 to_ir() 호출 시 1회 구성, 이후 재사용. unsendable 덕에 lock 불필요 (ir.md §7)
+    ir_cache: OnceCell<Py<PyAny>>,
 }
 
 fn load_document(path: String) -> Result<rhwp::document_core::DocumentCore, ParseError> {
@@ -25,7 +30,10 @@ impl PyDocument {
         let doc = py
             .detach(move || load_document(path_owned))
             .map_err(parse_error_to_py)?;
-        Ok(PyDocument { inner: doc })
+        Ok(PyDocument {
+            inner: doc,
+            ir_cache: OnceCell::new(),
+        })
     }
 
     #[getter]
@@ -124,6 +132,44 @@ impl PyDocument {
             std::fs::write(&output_path, &bytes).map_err(|e| PyIOError::new_err(e.to_string()))?;
             Ok(bytes.len())
         })
+    }
+
+    /// 문서를 Document IR (Pydantic `HwpDocument`) 로 변환하여 반환한다.
+    ///
+    /// 첫 호출 시 문서 트리를 순회하며 IR 을 구성하고 결과를 인스턴스에 캐시한다.
+    /// 재호출은 캐시된 객체를 반환. IR 모델은 `frozen=True` 이므로 반환 객체 수정
+    /// 시 Pydantic `ValidationError` 가 발생한다. 독립 사본이 필요하면
+    /// `ir.model_copy(deep=True)` 를 사용한다.
+    fn to_ir(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        // ^ OnceCell::get_or_try_init 은 nightly-only — 수동 get/set 으로 대체.
+        //   unsendable → 단일 스레드 접근이라 get() → set() 사이 경쟁 없음
+        if let Some(cached) = self.ir_cache.get() {
+            return Ok(cached.clone_ref(py));
+        }
+        let ir = ir::build_hwp_document(py, self.inner.document())?;
+        self.ir_cache
+            .set(ir)
+            .expect("ir_cache was empty just above");
+        Ok(self
+            .ir_cache
+            .get()
+            .expect("ir_cache was just set")
+            .clone_ref(py))
+    }
+
+    /// IR 을 JSON 문자열로 반환한다. `to_ir()` 캐시를 공유한다.
+    ///
+    /// `indent` 를 주면 Pydantic `model_dump_json(indent=...)` 으로 들여쓰기.
+    #[pyo3(signature = (*, indent = None))]
+    fn to_ir_json(&self, py: Python<'_>, indent: Option<usize>) -> PyResult<String> {
+        let ir_obj = self.to_ir(py)?;
+        let bound = ir_obj.bind(py);
+        let kwargs = PyDict::new(py);
+        if let Some(n) = indent {
+            kwargs.set_item("indent", n)?;
+        }
+        let result = bound.call_method("model_dump_json", (), Some(&kwargs))?;
+        result.extract::<String>()
     }
 
     fn __repr__(&self) -> String {
