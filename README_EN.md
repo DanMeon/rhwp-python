@@ -26,7 +26,7 @@ PyO3 Python bindings for [rhwp](https://github.com/edwardkim/rhwp), a Rust-based
 
 ## Requirements
 
-- Python 3.9+ (abi3-py39 wheel covers 3.9 through 3.13+)
+- Python 3.10+ (abi3-py310 wheel covers 3.10 through 3.13+)
 - No runtime Python dependencies for the core API
 - `rhwp-python[langchain]` extras pull in `langchain-core>=0.2` only
 

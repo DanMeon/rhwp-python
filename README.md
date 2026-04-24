@@ -24,7 +24,7 @@
 
 ## 요구 사항
 
-- Python 3.9+ (abi3-py39 wheel 하나로 3.9 ~ 3.13+ 커버)
+- Python 3.10+ (abi3-py310 wheel 하나로 3.10 ~ 3.13+ 커버)
 - 코어 API 는 **런타임 Python 의존성 없음**
 - `rhwp-python[langchain]` extras 는 `langchain-core>=0.2` 하나만 추가 설치
 
@@ -88,6 +88,48 @@ chunks = RecursiveCharacterTextSplitter(chunk_size=500).split_documents(docs)
 
 모든 Document 메타데이터: `source`, `section_count`, `paragraph_count`,
 `page_count`, `rhwp_version`. `paragraph` 모드에서는 `paragraph_index` 추가.
+
+## Document IR (v0.2.0+)
+
+RAG / LLM 파이프라인이 직접 소비하는 구조화 문서 모델. Pydantic V2 모델 + JSON
+Schema (Draft 2020-12) — HWP 의 구역 / 단락 / 표 / 서식 런을 손실 없이 노출한다.
+
+```python
+from rhwp.ir.nodes import ParagraphBlock, TableBlock
+
+doc = rhwp.parse("report.hwp")
+ir = doc.to_ir()                       # -> rhwp.ir.nodes.HwpDocument (Pydantic, frozen)
+json_str = doc.to_ir_json(indent=2)    # JSON 직렬화
+
+# 본문 블록을 순서대로 스트리밍 (표/문단 혼합, TableCell.blocks 까지 재귀)
+for block in ir.iter_blocks(scope="body"):
+    if isinstance(block, ParagraphBlock):
+        print("P", block.prov.section_idx, block.prov.para_idx, block.text)
+    elif isinstance(block, TableBlock):
+        print("T", block.rows, "x", block.cols, "cells=", len(block.cells))
+```
+
+**표 3중 표현** — `cells` (구조화 SQL/순회용) + `html` (HtmlRAG 호환 LLM 프롬프트) +
+`text` (평문 검색 폴백) 가 병기된다. 중첩 표는 `TableCell.blocks` 재귀로 자연 지원.
+
+**LangChain 통합** — 기존 loader 에 `mode="ir-blocks"` 추가:
+
+```python
+from rhwp.integrations.langchain import HwpLoader
+
+docs = HwpLoader("report.hwp", mode="ir-blocks").load()
+# ^ 단락은 page_content=text, 표는 page_content=HTML. 메타에 kind / section_idx /
+#   para_idx / (표의 경우) rows / cols / text / caption 포함
+```
+
+**JSON Schema** — `rhwp.ir.schema.export_schema()` 로 Draft 2020-12 스키마 생성,
+`load_schema()` 로 in-package 동봉 JSON 로드 (네트워크 불필요). `$id` 공개 URL:
+`https://danmeon.github.io/rhwp-python/schema/hwp_ir/v1/schema.json` — 불변 경로
+정책 (v1 영구). 외부 도구는 이 URL 또는 `*.hwp_ir.json` 파일명 convention 사용 가능.
+
+미구현 블록 타입 (Picture / Formula / Footnote / ListItem / Caption / TocEntry /
+Field) 은 `UnknownBlock` catch-all 로 forward-compat — v0.3.0 에서 추가되어도
+v0.2.0 소비자가 깨지지 않는다.
 
 ## 성능
 

@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   # * 메인 테스트 + 린트 + 타입체크
-  # abi3-py39 wheel 로 빌드는 한 번이지만 런타임 동작은 버전별 검증 필요 → Linux × 전 버전.
+  # abi3-py310 wheel 로 빌드는 한 번이지만 런타임 동작은 버전별 검증 필요 → Linux × 전 버전.
   # macOS / Windows 는 OS 레이어 스모크이므로 py3.12 하나만.
   test:
     name: Test (${{ matrix.os }} / py${{ matrix.python }})
@@ -37,8 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, python: "3.9", lint: true }
-          - { os: ubuntu-latest, python: "3.10" }
+          - { os: ubuntu-latest, python: "3.10", lint: true }
           - { os: ubuntu-latest, python: "3.11" }
           - { os: ubuntu-latest, python: "3.12" }
           - { os: ubuntu-latest, python: "3.13" }

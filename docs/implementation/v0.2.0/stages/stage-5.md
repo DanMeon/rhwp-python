@@ -83,10 +83,10 @@ assert isinstance(block, UnknownBlock)  # ^ fail-fast
 
 | 검사 | 결과 |
 |---|---|
-| `uv run pytest tests/test_ir_iter_blocks.py -v` | **10 passed** |
+| `uv run pytest tests/test_ir_iter_blocks.py -v` | **11 passed** |
 | `uv run pytest tests/test_langchain_loader_ir.py -v` | **11 passed** |
 | `uv run pytest tests/test_langchain_loader.py --collect-only` | **29 tests collected** (규약 유지) |
-| `uv run pytest -m "not slow"` | **163 passed** (S1 35 + S2/S3 16 + S3 tables 11 + S4 14 + S5 iter 10 + S5 loader 11 + 기존 66) |
+| `uv run pytest -m "not slow"` | **164 passed** (S1 35 + S2/S3 16 + S3 tables 11 + S4 14 + S5 iter 11 + S5 loader 11 + 기존 66) |
 | `cargo test --lib` | 5 passed |
 | `cargo clippy --all-targets -- -D warnings` | clean |
 | `uv run pyright python/ tests/` | **4 errors (의도된 `type_check_errors.py` 만)** |

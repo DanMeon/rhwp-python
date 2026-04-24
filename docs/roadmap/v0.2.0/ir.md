@@ -331,11 +331,13 @@ class Document:
         """블록을 순서대로 스트리밍.
 
         scope="body" (기본, RAG-safe): 본문 블록만.
-        scope="furniture": 머리글/꼬리말/각주만.
-        scope="all": 전체 — 본문 먼저, 이어서 장식.
+        scope="furniture": 머리글 → 꼬리말 → 각주 순.
+        scope="all": 전체 — 본문 먼저, 이어서 장식 (furniture 내부 순서와 동일).
         recurse=True: TableCell.blocks 까지 재귀.
         """
 ```
+
+**Furniture 내부 순서 계약**: `scope="furniture"` 및 `scope="all"` 의 장식 구간은 항상 `page_headers → page_footers → footnotes` 순으로 yield 한다. 소비자가 "어느 furniture 유형에서 나왔는지" 를 `metadata.kind` 대신 순서로도 식별할 수 있도록 고정한다 (v0.3.0 에서 새 furniture 유형이 추가되더라도 기존 세 항목의 상대 순서는 유지).
 
 **속성 직접 접근** — 구조 기반 작업에는 아래가 더 간결:
 

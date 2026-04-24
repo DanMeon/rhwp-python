@@ -10,7 +10,8 @@
 //! `(section_idx, para_idx)` Provenance 를 공유한다.
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::sync::PyOnceLock;
+use pyo3::types::{PyDict, PyList, PyType};
 
 use rhwp::model::control::Control;
 use rhwp::model::document::{DocInfo, Document};
@@ -18,14 +19,17 @@ use rhwp::model::paragraph::Paragraph;
 use rhwp::model::style::{CharShape, UnderlineType};
 use rhwp::model::table::{Cell, Table};
 
+// ^ Pydantic HwpDocument 클래스를 프로세스 전역에 lazy 캐시 —
+//   매 build_hwp_document 호출의 py.import + getattr 비용 제거
+static HWP_DOCUMENT_CLASS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
+
 /// 문서 전체를 Python dict 로 변환 후 Pydantic `HwpDocument` 로 검증한다.
 ///
 /// 결과는 `Py<PyAny>` — 호출자가 `OnceCell` 에 캐시 저장. GIL 이 필요하므로
 /// 호출 경로 전체가 GIL 유지 구간에서 실행된다.
 pub fn build_hwp_document(py: Python<'_>, doc: &Document) -> PyResult<Py<PyAny>> {
     let raw = build_document_dict(py, doc)?;
-    let module = py.import("rhwp.ir.nodes")?;
-    let hwp_class = module.getattr("HwpDocument")?;
+    let hwp_class = HWP_DOCUMENT_CLASS.import(py, "rhwp.ir.nodes", "HwpDocument")?;
     let ir = hwp_class.call_method1("model_validate", (raw,))?;
     Ok(ir.unbind())
 }

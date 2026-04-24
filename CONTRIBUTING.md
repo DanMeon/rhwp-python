@@ -15,7 +15,7 @@ Clone with `--recurse-submodules`, or run `git submodule update --init --recursi
 
 ## Code Style
 
-- Python 3.9+, `T | None` (not `Optional[T]`), PEP 561 typed
+- Python 3.10+, `T | None` (not `Optional[T]`), PEP 561 typed
 - Rust 1.83+ (PyO3 0.28 MSRV). No new `unsafe` in the bindings layer
 
 ## Pull Requests

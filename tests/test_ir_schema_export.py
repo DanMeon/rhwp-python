@@ -41,11 +41,14 @@ def test_export_schema_root_additional_properties_false():
     assert schema.get("additionalProperties") is False
 
 
-def test_export_schema_defs_are_populated():
+def test_export_schema_defs_are_exactly_the_known_nodes():
+    """`$defs` 는 HwpDocument (root) 를 제외한 9개 노드 정확히 일치.
+
+    새 block variant 가 v0.3.0+ 에 추가되면 이 set 도 갱신해야 한다 — 의도적인
+    강한 계약으로 스키마 형상 회귀를 조기에 탐지한다.
+    """
     schema = export_schema()
     defs = schema.get("$defs", {})
-    # ^ 10 개 노드 (Provenance/InlineRun/DocumentMetadata/Section/ParagraphBlock/
-    #   TableBlock/TableCell/UnknownBlock/Furniture/(HwpDocument 자체는 root))
     expected_nodes = {
         "Provenance",
         "InlineRun",
@@ -57,7 +60,7 @@ def test_export_schema_defs_are_populated():
         "UnknownBlock",
         "Furniture",
     }
-    assert expected_nodes <= set(defs.keys())
+    assert set(defs.keys()) == expected_nodes
 
 
 def test_export_schema_known_blocks_forbid_additional():
@@ -186,8 +189,25 @@ def test_schema_id_has_immutable_v1_path():
     assert SCHEMA_ID.endswith("/schema.json")
 
 
-def test_load_schema_raises_clear_error_on_missing_package_resource(tmp_path, monkeypatch):
-    """배포 환경에서 include 누락으로 JSON 이 빠졌을 때 FileNotFoundError."""
-    # ^ 실제 누락 시뮬레이션은 복잡하므로 (패키지 내부 파일을 실시간 삭제 불가)
-    # 여기서는 정상 로드만 확인. 누락 시 동작은 수동 검증.
-    assert load_schema()  # 정상 로드 smoke
+def test_load_schema_raises_file_not_found_when_packaged_json_missing(monkeypatch):
+    """maturin include 누락 등으로 in-package JSON 이 빠졌을 때 FileNotFoundError.
+
+    ``files("rhwp.ir")`` 로 얻은 Traversable 에 동일한 인터페이스를 제공하지만
+    ``is_file()`` 가 False 를 반환하는 객체를 주입해 에러 경로를 재현한다.
+    """
+
+    class _MissingResource:
+        def joinpath(self, *_parts: str) -> "_MissingResource":
+            return self
+
+        def is_file(self) -> bool:
+            return False
+
+        def __str__(self) -> str:
+            return "<packaged schema missing>"
+
+    import rhwp.ir.schema as schema_mod
+
+    monkeypatch.setattr(schema_mod, "files", lambda _package: _MissingResource())
+    with pytest.raises(FileNotFoundError, match="Packaged schema not found"):
+        schema_mod.load_schema()

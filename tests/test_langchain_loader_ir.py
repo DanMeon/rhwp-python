@@ -114,21 +114,28 @@ def test_ir_blocks_mode_works_on_hwp5_sample(hwp_sample: Path) -> None:
 # * Provenance 일치
 
 
-def test_ir_blocks_provenance_matches_ir(hwpx_sample: Path) -> None:
-    """loader 가 반환한 metadata 의 (section_idx, para_idx) 가 to_ir() 블록과 일치."""
+def test_ir_blocks_preserves_iter_blocks_order(hwpx_sample: Path) -> None:
+    """loader 의 Document 순서가 ``iter_blocks`` 순서의 부분 시퀀스다.
+
+    loader 는 빈 블록을 스킵하므로 1:1 이 아니지만, 살아남은 블록들의 상대 순서
+    는 ``iter_blocks(scope="body", recurse=True)`` 와 동일해야 한다.
+    """
     parsed = rhwp.parse(str(hwpx_sample))
     ir = parsed.to_ir()
     docs = HwpLoader(str(hwpx_sample), mode="ir-blocks").load()
 
-    # ^ iter_blocks 의 순서와 loader 의 순서가 동일해야 함
-    ir_blocks = [b for b in ir.iter_blocks(scope="body", recurse=True)]
+    ir_provs = [(b.prov.section_idx, b.prov.para_idx) for b in ir.iter_blocks(scope="body")]
     loader_provs = [(d.metadata["section_idx"], d.metadata["para_idx"]) for d in docs]
-    ir_provs = [(b.prov.section_idx, b.prov.para_idx) for b in ir_blocks]
 
-    # ^ 빈 블록이 loader 에서 스킵되므로 길이는 다를 수 있음 — loader prov 는 ir prov 의 부분집합
-    loader_set = set(loader_provs)
-    ir_set = set(ir_provs)
-    assert loader_set <= ir_set
+    # ^ loader_provs 가 ir_provs 의 부분 시퀀스인지 검증 (순서 보존)
+    cursor = 0
+    for prov in loader_provs:
+        while cursor < len(ir_provs) and ir_provs[cursor] != prov:
+            cursor += 1
+        assert cursor < len(ir_provs), (
+            f"loader prov {prov} not found after position in iter_blocks order"
+        )
+        cursor += 1
 
 
 # * 기본 mode 목록 검증 — invalid mode 는 여전히 거부

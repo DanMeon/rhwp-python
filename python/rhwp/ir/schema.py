@@ -16,7 +16,7 @@ additionalProperties false" 를 요구한다. 우리 스키마는 ``extra="forbi
 """
 
 import json
-from pathlib import Path
+from importlib.resources import files
 from typing import Any, Final
 
 from rhwp.ir.nodes import HwpDocument
@@ -87,11 +87,8 @@ def load_schema() -> dict[str, Any]:
         FileNotFoundError: 패키지에 스키마 JSON 이 포함되지 않았을 때
             (maturin include 설정 누락 또는 빌드 불완전).
     """
-    from importlib.resources import files
 
-    # ^ __package__ 대신 하드코딩 — pyright 가 __package__: str | None 으로 추론하므로.
-    #   rhwp.ir 이 런타임에 항상 존재함이 이 모듈의 위치로 보장됨
-    resource = files("rhwp.ir").joinpath("schema", _PACKAGED_SCHEMA_NAME)
+    resource = files("rhwp.ir").joinpath("schema").joinpath(_PACKAGED_SCHEMA_NAME)
     if not resource.is_file():
         raise FileNotFoundError(
             f"Packaged schema not found at {resource!s}. "
@@ -99,13 +96,6 @@ def load_schema() -> dict[str, Any]:
             "and ensure [tool.maturin] include covers it."
         )
     return json.loads(resource.read_text(encoding="utf-8"))
-
-
-def _write_packaged_schema(path: Path) -> None:
-    """개발자용 헬퍼 — ``export_schema()`` 결과를 지정 경로에 들여쓰기 JSON 으로 쓴다."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(export_schema(), ensure_ascii=False, indent=2) + "\n"
-    path.write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

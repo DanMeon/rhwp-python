@@ -41,7 +41,7 @@ All rules from `~/.claude/CLAUDE.md` apply. This file adds only project-specific
 - After any Rust change (`src/*.rs`): `uv run maturin develop --release` before `pytest`. Without it, tests run against the stale binary
 - PyO3 `#[pyclass(unsendable)]`: `Document` is single-thread bound — cross-thread access raises `RuntimeError`. Worker pattern: `parse + consume` inside the worker, return primitives
 - GIL release via `py.detach` in `parse()` / `render_pdf()` / `export_pdf()` — keep this pattern when adding new CPU/IO-bound methods
-- `abi3-py39` feature: **one wheel covers 3.9–3.13+**. Don't bind to Python version-specific C API
+- `abi3-py310` feature: **one wheel covers 3.10–3.13+**. Don't bind to Python version-specific C API
 
 ### Async direction
 - Python-surface APIs for I/O and integrations are **async-first**: when adding LangChain / LlamaIndex / Haystack loaders, implement `aload` / `alazy_load` / async counterparts alongside sync versions

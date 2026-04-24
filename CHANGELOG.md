@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added — Document IR v1 (Phase 2 — targets v0.2.0)
+## [0.2.0] — 2026-04-24
+
+MINOR release — Phase 2 착수. RAG / LLM 파이프라인이 직접 소비하는 구조화 Document IR v1 (Pydantic V2 + JSON Schema Draft 2020-12) 을 도입. 기존 `Document` / `HwpLoader` API 는 변경 없음 (backward-compatible). 상류 `edwardkim/rhwp` 커밋 핀은 `1636213` 그대로 유지 (v0.1.0 과 동일).
+
+### Added — Document IR v1
 
 **Document IR v1** — RAG / LLM 파이프라인이 직접 소비 가능한 구조화 문서 모델. Pydantic V2 기반 공개 타입 + JSON Schema (Draft 2020-12).
 
@@ -23,13 +27,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Provenance 단위는 **Unicode codepoint** — Python `str[i]` 슬라이싱과 직접 호환 (이모지/SMP CJK 혼용에서도 off-by-one 없음).
 - 신규 런타임 의존성: `pydantic>=2.5,<3`. 테스트 의존성: `jsonschema>=4`.
 - 문서: `docs/roadmap/v0.2.0/ir.md` (사양), `docs/design/v0.2.0/ir-design-research.md` (7개 결정 증거), `docs/implementation/v0.2.0/stages/stage-{1..5}.md`.
-- 테스트: **163 passed** — IR schema/roundtrip/tables/iter/export + LangChain ir-blocks + Rust unit tests (`cargo test` 5 passed).
+- 테스트: **164 passed** — IR schema/roundtrip/tables/iter/export + LangChain ir-blocks + Rust unit tests (`cargo test` 5 passed).
 
 ### Changed — Phase 2 계획 전환
 
 - 원안의 CLI 도구 (`rhwp` 바이너리) 는 **폐기**. 업스트림 `edwardkim/rhwp` 의 Rust 바이너리가 같은 이름을 점유하므로 충돌 방지 + Python 고유 가치 (RAG / LangChain 통합) 에 집중. 상세: `docs/roadmap/v0.2.0/ir.md` §방향 전환 배경.
 - `python/rhwp/__init__.pyi` 에 `Document.to_ir` / `to_ir_json` 타입 힌트 추가.
 - `pyproject.toml [tool.maturin] include` 에 `python/rhwp/ir/schema/*.json` 포함 (wheel + sdist).
+
+### Changed — Python 지원 범위 상향 (3.10+)
+
+- Python **3.9 지원 드랍** — `requires-python = ">=3.10"`, `pyo3` feature 를 `abi3-py39` → `abi3-py310` 으로 전환, CI 매트릭스에서 `3.9` 제거. Python 3.9 는 2025-10-31 EOL 이후 보안 패치가 중단된 상태 (> 6 개월 경과). 기존 공개 API 는 전부 호환 — 3.9 사용자는 PyPI 의 `rhwp-python 0.1.x` 를 계속 사용 가능.
+- `rhwp.ir.schema.load_schema()` 의 `Traversable.joinpath()` 호출을 chain 패턴 (`joinpath(a).joinpath(b)`) 으로 정리 — `*descendants` 가변 인자 시그니처가 표준 라이브러리에 도입된 시점이 버전별로 달라 typeshed 기준 pyright 가 py3.9/3.10/3.11 에서 `reportCallIssue` 를 내는 문제 제거.
 
 ### Deferred to v0.3.0+
 
@@ -98,6 +107,7 @@ The `rhwp` Rust core is consumed via git submodule pinned to upstream commit `16
 - Local `maturin build --release` wheel (3.0 MB) verified end-to-end in a clean venv: install → import → `rhwp.parse` → `HwpLoader` load. (Note: the v0.1.0 sdist exceeded PyPI's 100 MB limit and did not upload; fixed in [0.1.1](#011--2026-04-23).)
 - GitHub Actions workflow (`publish.yml`) builds Linux (x86_64 + aarch64) / macOS (x86_64 + aarch64) / Windows wheels + sdist on release publish, then uploads via PyPI Trusted Publisher (OIDC).
 
-[Unreleased]: https://github.com/DanMeon/rhwp-python/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/DanMeon/rhwp-python/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/DanMeon/rhwp-python/releases/tag/v0.2.0
 [0.1.1]: https://github.com/DanMeon/rhwp-python/releases/tag/v0.1.1
 [0.1.0]: https://github.com/DanMeon/rhwp-python/releases/tag/v0.1.0

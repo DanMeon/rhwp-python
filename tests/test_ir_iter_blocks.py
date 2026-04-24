@@ -75,6 +75,21 @@ def test_iter_blocks_all_scope_body_first_then_furniture():
     assert all_blocks[1] is furniture_block
 
 
+def test_iter_blocks_furniture_order_is_headers_footers_footnotes():
+    """Furniture 내부는 항상 page_headers → page_footers → footnotes 순 (ir.md 계약)."""
+    header = ParagraphBlock(text="H", prov=Provenance(section_idx=0, para_idx=1))
+    footer = ParagraphBlock(text="F", prov=Provenance(section_idx=0, para_idx=2))
+    footnote = ParagraphBlock(text="N", prov=Provenance(section_idx=0, para_idx=3))
+    ir = HwpDocument(
+        furniture=Furniture(
+            page_headers=[header],
+            page_footers=[footer],
+            footnotes=[footnote],
+        ),
+    )
+    assert list(ir.iter_blocks(scope="furniture")) == [header, footer, footnote]
+
+
 # * 재귀 순회 — 수동 구성 중첩 표로 계약 확정
 
 
