@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] — 2026-04-24
+## [0.2.0] — 2026-04-25
 
-MINOR release — Phase 2 착수. RAG / LLM 파이프라인이 직접 소비하는 구조화 Document IR v1 (Pydantic V2 + JSON Schema Draft 2020-12) 을 도입. 기존 `Document` / `HwpLoader` API 는 변경 없음 (backward-compatible). 상류 `edwardkim/rhwp` 커밋 핀은 `1636213` 그대로 유지 (v0.1.0 과 동일).
+MINOR release — Phase 2 착수. RAG / LLM 파이프라인이 직접 소비하는 구조화 Document IR v1 (Pydantic V2 + JSON Schema Draft 2020-12) 을 도입. 기존 `Document` / `HwpLoader` API 는 변경 없음 (backward-compatible). 상류 `edwardkim/rhwp` 커밋 핀을 `bea635b` (main HEAD) 로 갱신 — v0.1.0 의 `1636213` 이후 upstream 변경은 docs (매뉴얼 현행화 / README 동기화 / 자기검열) 만으로 코드 동작 변화 없음. BMP→PNG 재인코딩 fix (#240) 는 여전히 upstream `origin/devel` 에만 있으며 본 release pin 에 미포함 — BMP 임베딩 HWP 의 SVG/PDF 렌더링 이슈는 upstream main 머지를 대기.
 
 ### Added — Document IR v1
 
