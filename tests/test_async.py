@@ -13,7 +13,11 @@ import asyncio
 from pathlib import Path
 
 import pytest
-import rhwp
+
+# ^ aiofiles 미설치 시 모듈 전체 skip — `[async]` extras 없는 CI job 에서 ImportError fail 회피
+pytest.importorskip("aiofiles")
+
+import rhwp  # noqa: E402
 
 
 def test_aparse_returns_document_instance(hwp_sample: Path) -> None:
@@ -65,9 +69,7 @@ def test_aparse_ir_shares_cache(hwp_sample: Path) -> None:
     assert ir1 is ir2
 
 
-def test_aparse_raises_import_error_without_aiofiles(
-    hwp_sample: Path, monkeypatch
-) -> None:
+def test_aparse_raises_import_error_without_aiofiles(hwp_sample: Path, monkeypatch) -> None:
     """``aiofiles`` 미설치 시뮬레이션 — ``rhwp.aparse`` 는 명시적 ``ImportError``."""
     import builtins
 

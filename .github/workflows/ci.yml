@@ -125,10 +125,11 @@ jobs:
       - name: Run pytest — extras-gated tests must auto-skip via importorskip
         # ^ 파일-레벨 importorskip 은 해당 파일 전체를 skip 1개로 카운트.
         #   현재 gated 파일: test_langchain_loader.py + test_langchain_loader_ir.py
-        #   (langchain-core), test_ir_schema_export.py (jsonschema) → 총 3 파일
+        #   (langchain-core), test_ir_schema_export.py (jsonschema),
+        #   test_async.py (aiofiles) → 총 4 파일
         run: |
           uv run pytest tests/ -m "not slow" -v | tee pytest-output.txt
-          if ! grep -qE '(^|[^0-9])3 skipped([^0-9]|$)' pytest-output.txt; then
-            echo "::error::expected 3 extras-gated files to auto-skip via importorskip (langchain×2, jsonschema)"
+          if ! grep -qE '(^|[^0-9])4 skipped([^0-9]|$)' pytest-output.txt; then
+            echo "::error::expected 4 extras-gated files to auto-skip via importorskip (langchain×2, jsonschema, aiofiles)"
             exit 1
           fi

@@ -54,7 +54,7 @@ All rules from `~/.claude/CLAUDE.md` apply. This file adds only project-specific
 - Real HWP fixtures live in the submodule: `external/rhwp/samples/aift.hwp` (HWP5), `table-vpos-01.hwpx` (HWPX). `tests/conftest.py` + `benches/bench_gil.py` reference this path
 - When changing one path, change both
 - Markers: `slow` (PDF render), `langchain` (extras required). Default run: `pytest -m "not slow"`
-- LangChain tests auto-skip when `langchain-core` is missing (`pytest.importorskip`). Keep the skipped count at **exactly 29** — CI validates this
+- Extras-gated test files use module-level `pytest.importorskip` so the whole file counts as **1 skip** when the extra is missing. Current gated files: `test_langchain_loader.py` + `test_langchain_loader_ir.py` (langchain-core), `test_ir_schema_export.py` (jsonschema), `test_async.py` (aiofiles) → CI's `test-without-extras` job validates **exactly 4 skipped** (see `.github/workflows/ci.yml`). When adding a new extras-gated file, bump the count in both CLAUDE.md and ci.yml
 - `tests/type_check_errors.py` holds **exactly 4 intentional pyright errors** — CI validates that too. When editing, preserve count; don't fix them
 
 ### Git workflow
