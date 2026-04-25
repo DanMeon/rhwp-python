@@ -2,13 +2,15 @@ use std::cell::OnceCell;
 
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyDict};
+use pyo3::types::{PyBytes, PyDict, PyType};
 
 use crate::errors::{parse_error_to_py, ParseError};
 use crate::ir;
 
 // ^ unsendable: DocumentCore 내부 RefCell 필드로 !Sync — 다른 스레드 접근 시 런타임 패닉 방어
-#[pyclass(name = "Document", module = "rhwp", unsendable)]
+// ^ name = "_Document": underscore prefix 는 "Rust thin core" 임을 명시. 사용자-대면 심볼
+//   `rhwp.Document` 는 Python wrapper 클래스가 제공하며 이 타입을 _inner 로 감싼다
+#[pyclass(name = "_Document", module = "rhwp._rhwp", unsendable)]
 pub struct PyDocument {
     pub(crate) inner: rhwp::document_core::DocumentCore,
     // ^ 생성자에 전달된 파일 경로 — IR `DocumentSource.uri` 로 전파. RAG 응답 역추적 경로.
@@ -36,6 +38,28 @@ impl PyDocument {
         Ok(PyDocument {
             inner: doc,
             source_uri: Some(source_uri),
+            ir_cache: OnceCell::new(),
+        })
+    }
+
+    /// 메모리 bytes 로부터 Document 구성 — aparse 경로의 async 파일 I/O 용.
+    ///
+    /// ``source_uri`` 는 파일 경로·URL·custom 식별자 중 호출자가 선택 (기본 None).
+    /// 파싱은 GIL 해제 구간에서 실행 (`py.detach`) — 다른 async task 와 병렬.
+    #[classmethod]
+    #[pyo3(signature = (data, *, source_uri = None))]
+    fn from_bytes(
+        cls: &Bound<'_, PyType>,
+        data: Vec<u8>,
+        source_uri: Option<String>,
+    ) -> PyResult<Self> {
+        let py = cls.py();
+        let doc = py
+            .detach(move || rhwp::document_core::DocumentCore::from_bytes(&data))
+            .map_err(|e| parse_error_to_py(ParseError::Parse(format!("{e:?}"))))?;
+        Ok(PyDocument {
+            inner: doc,
+            source_uri,
             ir_cache: OnceCell::new(),
         })
     }
@@ -156,7 +180,11 @@ impl PyDocument {
         if let Some(cached) = self.ir_cache.get() {
             return Ok(cached.clone_ref(py));
         }
-        let ir = ir::build_hwp_document(py, self.inner.document(), self.source_uri.as_deref())?;
+        // ^ Rust 는 raw 평탄 구조만 출고. 도메인 변환 (HTML/role/Pydantic 합성)
+        //   은 rhwp.ir._mapper 가 담당 — IR 진화 시 maturin rebuild 회피.
+        let raw = ir::build_raw_document(self.inner.document(), self.source_uri.as_deref());
+        let mapper = py.import("rhwp.ir._mapper")?;
+        let ir = mapper.call_method1("build_hwp_document", (raw,))?.unbind();
         self.ir_cache
             .set(ir)
             .expect("ir_cache was empty just above");
@@ -206,7 +234,3 @@ impl PyDocument {
     }
 }
 
-#[pyfunction]
-pub fn parse(py: Python<'_>, path: &str) -> PyResult<PyDocument> {
-    PyDocument::new(py, path)
-}

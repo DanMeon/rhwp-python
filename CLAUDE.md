@@ -39,13 +39,16 @@ All rules from `~/.claude/CLAUDE.md` apply. This file adds only project-specific
 
 ### Rust + Python hybrid build
 - After any Rust change (`src/*.rs`): `uv run maturin develop --release` before `pytest`. Without it, tests run against the stale binary
-- PyO3 `#[pyclass(unsendable)]`: `Document` is single-thread bound — cross-thread access raises `RuntimeError`. Worker pattern: `parse + consume` inside the worker, return primitives
-- GIL release via `py.detach` in `parse()` / `render_pdf()` / `export_pdf()` — keep this pattern when adding new CPU/IO-bound methods
+- PyO3 `#[pyclass(unsendable)]`: `_Document` is bound to its creation thread (upstream `DocumentCore` holds `RefCell` fields — `!Sync`). Same-thread worker pattern (`parse + consume + return primitives` inside one thread) works; `asyncio.to_thread(rhwp.parse, path)` does NOT — the Future resolves on the main thread and first attribute access panics with `_rhwp::document::PyDocument is unsendable, but sent to another thread`
+- GIL release via `py.detach` in `_Document::from_bytes` / `render_pdf()` / `export_pdf()` — keep this pattern when adding new CPU/IO-bound methods
 - `abi3-py310` feature: **one wheel covers 3.10–3.13+**. Don't bind to Python version-specific C API
 
 ### Async direction
 - Python-surface APIs for I/O and integrations are **async-first**: when adding LangChain / LlamaIndex / Haystack loaders, implement `aload` / `alazy_load` / async counterparts alongside sync versions
-- Rust core is sync; bindings may release the GIL so `asyncio.to_thread(rhwp.parse, path)` works. Document this pattern in user-facing docs rather than wrapping in Python
+- **Forbidden pattern**: `asyncio.to_thread(rhwp.parse, path)` — `_Document` is unsendable (see Rust+Python hybrid build note above), the returned Document panics on main-thread access. `async fn` in `#[pymethods]` is also incompatible (PyO3 requires `Send + 'static` futures)
+- **Supported async pattern**: `aparse(path)` uses `aiofiles.open()` for the file read on the event-loop thread, then calls `Document.from_bytes(data)` on the same thread. Document never crosses a thread boundary. Optional dep: `pip install rhwp[async]` — missing `aiofiles` raises `ImportError` (no silent fallback)
+- **Document instance-level async methods (`doc.ato_ir()` etc.) are NOT provided** — they would require thread offload which unsendable forbids. For async code, `await rhwp.aparse(path)` once, then call sync methods on the Document directly (these are fast, in-memory, GIL-holding operations)
+- If upstream rhwp ever replaces its `RefCell` caches with thread-safe synchronization, revisit this — `unsendable` could then be dropped, enabling true `async fn pymethods`
 
 ### Tests
 - Real HWP fixtures live in the submodule: `external/rhwp/samples/aift.hwp` (HWP5), `table-vpos-01.hwpx` (HWPX). `tests/conftest.py` + `benches/bench_gil.py` reference this path

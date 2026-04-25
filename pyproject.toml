@@ -47,6 +47,9 @@ Upstream = "https://github.com/edwardkim/rhwp"
 
 [project.optional-dependencies]
 langchain = ["langchain-core>=0.2"]
+# ^ aparse() 가 aiofiles.open 으로 파일 I/O 를 async 처리하기 위해 필요.
+#   미설치 시 aparse 호출 시점에 ImportError — sync 경로 (parse) 는 무관
+async = ["aiofiles>=23"]
 # ^ examples 는 01~03 예제 스크립트 일괄 실행용 우산 extras — typer + langchain-core + text-splitters 합집합
 examples = [
     "typer>=0.12",
@@ -64,6 +67,8 @@ testing = [
     "langchain-text-splitters>=0.2",
     # ^ JSON Schema meta-validation (tests/test_ir_schema_export.py)
     "jsonschema>=4",
+    # ^ aparse() 경로 검증 — aiofiles.open + Document.from_bytes 조합
+    "aiofiles>=23",
 ]
 linting = [
     {include-group = "dev"},
