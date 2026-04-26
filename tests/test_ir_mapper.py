@@ -47,7 +47,7 @@ def test_escape_html_preserves_non_ascii():
 
 
 def _paragraph(text: str) -> RawParagraph:
-    return RawParagraph(section_idx=0, para_idx=0, text=text, char_runs=[], tables=[])
+    return RawParagraph(section_idx=0, para_idx=0, text=text, char_runs=[], tables=[], pictures=[])
 
 
 def _cell(

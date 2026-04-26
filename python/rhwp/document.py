@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING
 from rhwp._rhwp import _Document
 
 if TYPE_CHECKING:
-    from rhwp.ir.nodes import HwpDocument
+    from rhwp.ir.nodes import HwpDocument, PictureBlock
 
 
 class Document:
@@ -145,6 +145,54 @@ class Document:
             pydantic.ValidationError: IR 변환 중 스키마 불일치가 발생할 때.
         """
         return self._inner.to_ir_json(indent=indent)
+
+    def bytes_for_image(self, picture: "PictureBlock") -> bytes:
+        """``PictureBlock`` 의 ``bin://`` URI 를 raw bytes 로 해석.
+
+        IR JSON 에 image binary 가 inline 되지 않으므로 (모델은 source 보존,
+        직렬화 시점 결정), raw bytes 가 필요할 때 본 헬퍼로 접근한다.
+
+        ``data:image/...`` (embedded) 또는 ``file://...`` (external) 모드의
+        ImageRef 는 v0.4.0+ opt-in 이며 v0.3.0 시점에는 ValueError. broken
+        reference (``picture.image is None``) 도 ValueError.
+
+        Args:
+            picture: ``Document.to_ir()`` 결과 트리에서 얻은 PictureBlock.
+                다른 Document 의 PictureBlock 을 넘기면 잘못된 binary 를 반환할
+                수 있다 — bin_data_id 는 같은 문서 안에서만 유효한 인덱스다.
+
+        Returns:
+            이미지 raw bytes (PNG/JPEG/BMP/... — ``picture.image.mime_type`` 참조).
+
+        Raises:
+            ValueError: image=None (broken reference), URI 가 bin:// 스킴이 아님,
+                bin_data_id 파싱 실패, 또는 lookup 실패 (Embedding 이 아니거나
+                bin_data_content 누락).
+        """
+        if picture.image is None:
+            raise ValueError("PictureBlock.image is None (broken reference) — no bytes available")
+        uri = picture.image.uri
+        # ^ v0.3.0 S1 은 bin:// 스킴만 출고한다. embedded/external 은 직렬화
+        #   시점 모드 (v0.4.0+) — 읽기 경로에서 마주치면 명시적 에러.
+        if not uri.startswith("bin://"):
+            raise ValueError(
+                f"bytes_for_image only supports 'bin://' URIs, got {uri!r}. "
+                "embedded (data:) and external (file:) modes are v0.4.0+ opt-in."
+            )
+        try:
+            bin_data_id = int(uri[len("bin://") :])
+        except ValueError as e:
+            raise ValueError(f"invalid bin:// URI {uri!r} — expected bin://<int>") from e
+        if not 0 <= bin_data_id <= 0xFFFF:
+            raise ValueError(f"bin_data_id {bin_data_id} out of u16 range — corrupt URI {uri!r}")
+        result = self._inner.bytes_for_image_id(bin_data_id)
+        if result is None:
+            raise ValueError(
+                f"bin_data_id {bin_data_id} not found in document. "
+                "BinData may be Link/Storage type (not Embedding) or content was "
+                "not loaded by the parser."
+            )
+        return result
 
     # * Rendering
 

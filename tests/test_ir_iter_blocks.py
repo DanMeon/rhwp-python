@@ -50,11 +50,21 @@ def test_iter_blocks_recurse_false_matches_body_len(parsed_hwpx: rhwp.Document):
 # * furniture scope
 
 
-def test_iter_blocks_furniture_is_empty_in_v0_2_0(parsed_hwpx: rhwp.Document):
-    """v0.2.0 은 Furniture 본문을 파싱 안 함 — 빈 iterator."""
+def test_iter_blocks_furniture_yields_consistent_with_lists(parsed_hwpx: rhwp.Document):
+    """v0.3.0 S1 부터 furniture 가 채워질 수 있다 — yield 결과 == 리스트 직접 합산.
+
+    실제 채워진 개수는 샘플에 따라 0 일 수도 있다 (table-vpos-01.hwpx 가
+    헤더/푸터 없으면 빈 리스트). 본 테스트는 iter_blocks(furniture) 가 항상
+    page_headers + page_footers + footnotes 를 순서대로 평탄화하는 계약만 검증.
+    """
     ir = parsed_hwpx.to_ir()
-    blocks = list(ir.iter_blocks(scope="furniture"))
-    assert blocks == []
+    blocks = list(ir.iter_blocks(scope="furniture", recurse=False))
+    expected = (
+        list(ir.furniture.page_headers)
+        + list(ir.furniture.page_footers)
+        + list(ir.furniture.footnotes)
+    )
+    assert blocks == expected
 
 
 def test_iter_blocks_all_scope_body_first_then_furniture():
@@ -171,7 +181,7 @@ def test_iter_blocks_recurse_yields_more_on_real_sample(parsed_hwpx: rhwp.Docume
 
 def test_iter_blocks_yields_only_known_block_types(parsed_hwpx: rhwp.Document):
     ir = parsed_hwpx.to_ir()
-    from rhwp.ir.nodes import UnknownBlock
+    from rhwp.ir.nodes import PictureBlock, UnknownBlock
 
     for block in ir.iter_blocks(scope="all", recurse=True):
-        assert isinstance(block, (ParagraphBlock, TableBlock, UnknownBlock))
+        assert isinstance(block, (ParagraphBlock, TableBlock, PictureBlock, UnknownBlock))

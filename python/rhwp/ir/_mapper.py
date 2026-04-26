@@ -2,7 +2,7 @@
 
 ``src/ir.rs`` 의 ``#[derive(IntoPyObject)]`` struct 들이 내보내는 dict 트리를
 입력으로 받아 ``rhwp.ir.nodes`` 의 모델 트리를 구성한다. 도메인 규칙 (cell role
-분류, HTML 직렬화, inline run 폴백 정책) 은 여기서 결정하여 IR 진화 시
+분류, HTML 직렬화, mime 매핑, inline run 폴백 정책) 은 여기서 결정하여 IR 진화 시
 maturin rebuild 를 회피한다.
 
 Rust 출력 계약은 ``src/ir.rs`` 의 struct field 이름과 1:1 대응 — 구조는
@@ -11,13 +11,15 @@ Rust 출력 계약은 ``src/ir.rs`` 의 struct field 이름과 1:1 대응 — �
 따른다 (소비자는 ``rhwp.ir.nodes`` 의 공개 IR 모델만 사용).
 """
 
-from typing import Literal
+from typing import Final, Literal
 
 from rhwp.ir._raw_types import (
     RawCell,
     RawCharRun,
     RawDocument,
+    RawImageRef,
     RawParagraph,
+    RawPicture,
     RawTable,
 )
 from rhwp.ir.nodes import (
@@ -25,13 +27,32 @@ from rhwp.ir.nodes import (
     DocumentSource,
     Furniture,
     HwpDocument,
+    ImageRef,
     InlineRun,
     ParagraphBlock,
+    PictureBlock,
     Provenance,
     Section,
     TableBlock,
     TableCell,
 )
+
+# ^ 상류 BinData.extension → 표준 mime type. 누락/미지 확장자는 폴백.
+#   Embedding 만 채워지므로 PDF 등 비-이미지 확장자는 등장하지 않음.
+_MIME_BY_EXT: Final[dict[str, str]] = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "bmp": "image/bmp",
+    "gif": "image/gif",
+    "tif": "image/tiff",
+    "tiff": "image/tiff",
+    "wmf": "image/x-wmf",
+    "emf": "image/x-emf",
+    "svg": "image/svg+xml",
+    "webp": "image/webp",
+}
+_FALLBACK_MIME: Final = "application/octet-stream"
 
 
 def build_hwp_document(raw: RawDocument) -> HwpDocument:
@@ -48,25 +69,40 @@ def build_hwp_document(raw: RawDocument) -> HwpDocument:
     for raw_para in raw["paragraphs"]:
         body.extend(_flatten_paragraph(raw_para))
 
+    page_headers: list[Block] = []
+    for raw_hdr in raw["headers"]:
+        page_headers.extend(_flatten_paragraph(raw_hdr))
+    page_footers: list[Block] = []
+    for raw_ftr in raw["footers"]:
+        page_footers.extend(_flatten_paragraph(raw_ftr))
+
     return HwpDocument(
         source=source,
         sections=sections,
         body=body,
-        furniture=Furniture(),
+        furniture=Furniture(
+            page_headers=page_headers,
+            page_footers=page_footers,
+        ),
     )
 
 
 def _flatten_paragraph(raw_para: RawParagraph) -> list[Block]:
-    """Paragraph → ParagraphBlock + 각 내부 표마다 TableBlock.
+    """Paragraph → ParagraphBlock + 표/그림 파생 블록.
 
     파생 블록들은 외부 paragraph 의 ``(section_idx, para_idx)`` Provenance 를
     공유 — iter_blocks 소비자가 동일 문단 파생임을 식별 가능. ``_build_table_cell``
     이 본 함수를 재호출해 셀 내부 문단까지 평탄화 — 중첩 표 (표 안의 표) 를
-    자연스럽게 지원한다.
+    자연스럽게 지원.
+
+    출고 순서는 ParagraphBlock → tables → pictures (S1 단순 정책).
+    HWP controls 의 원래 시각 순서 보존은 v0.4.0+ 에서 ``order: int`` 필드 검토.
     """
     blocks: list[Block] = [_build_paragraph_block(raw_para)]
     for raw_table in raw_para["tables"]:
         blocks.append(_build_table_block(raw_para, raw_table))
+    for raw_pic in raw_para["pictures"]:
+        blocks.append(_build_picture_block(raw_pic))
     return blocks
 
 
@@ -173,6 +209,49 @@ def _cell_role(
     if merged and all(not p["text"].strip() for p in raw_cell["paragraphs"]):
         return "layout"
     return "data"
+
+
+def _build_picture_block(raw_pic: RawPicture) -> PictureBlock:
+    """RawPicture → PictureBlock.
+
+    image=None 케이스: 상류 Picture 가 bin_data_id=0 (미할당) 으로 들어왔거나
+    bin_data_list 에서 lookup 실패 — broken reference 로 그대로 보존한다 (소비자가
+    ``picture.image is None`` 으로 분기 가능).
+    """
+    image: ImageRef | None = None
+    raw_img = raw_pic["image"]
+    if raw_img is not None:
+        image = ImageRef(
+            uri=_image_uri(raw_img),
+            mime_type=_mime_for_extension(raw_img["extension"]),
+        )
+    return PictureBlock(
+        image=image,
+        description=raw_pic["description"],
+        prov=Provenance(
+            section_idx=raw_pic["section_idx"],
+            para_idx=raw_pic["para_idx"],
+            char_start=None,
+            char_end=None,
+        ),
+    )
+
+
+def _image_uri(raw_img: RawImageRef) -> str:
+    """기본 ``bin://<bin_data_id>`` URI — embedded/external 모드는 v0.4.0+ opt-in."""
+    return f"bin://{raw_img['bin_data_id']}"
+
+
+def _mime_for_extension(extension: str | None) -> str:
+    """확장자 → 표준 mime. 누락/미지 시 ``application/octet-stream`` 폴백.
+
+    HWP BinData 는 Embedding 타입에만 ``extension`` 을 채운다 — Link 타입은
+    extension=None 이라 폴백. 사용자가 mime 정확도가 필요하면 magic byte 검증을
+    별도 적용한다 (예: ``Document.bytes_for_image`` 로 raw 받아 imghdr/PIL).
+    """
+    if extension is None:
+        return _FALLBACK_MIME
+    return _MIME_BY_EXT.get(extension.lower(), _FALLBACK_MIME)
 
 
 def _table_to_html(raw_table: RawTable) -> str:

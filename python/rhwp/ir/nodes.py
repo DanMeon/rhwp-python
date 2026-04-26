@@ -1,12 +1,16 @@
-"""rhwp.ir.nodes — Document IR Pydantic 모델 (schema_version "1.0").
+"""rhwp.ir.nodes — Document IR Pydantic 모델 (schema_version "1.1").
 
 재귀 구조 (``TableCell.blocks`` → ``Block`` → ``TableBlock.cells`` → ``TableCell``)
 는 문자열 전방 참조 + 파일 하단 ``model_rebuild()`` 로 해소한다.
+
+스키마 버전 1.1 (v0.3.0) — v1.0 의 paragraph/table 위에 picture 가 추가됐고,
+furniture.page_headers/page_footers 가 실제 채워진다. 이후 stage 에서 formula /
+footnote / endnote / list_item / caption / toc / field 가 차례로 추가된다.
 """
 
 import warnings
 from collections.abc import Iterator
-from typing import Annotated, Any, Final, Literal, Optional, Union
+from typing import Annotated, Any, Final, Literal
 
 from pydantic import (
     BaseModel,
@@ -25,8 +29,10 @@ __all__ = [
     "DocumentSource",
     "Furniture",
     "HwpDocument",
+    "ImageRef",
     "InlineRun",
     "ParagraphBlock",
+    "PictureBlock",
     "Provenance",
     "SchemaVersion",
     "Section",
@@ -36,7 +42,7 @@ __all__ = [
 ]
 
 
-CURRENT_SCHEMA_VERSION: Final = "1.0"
+CURRENT_SCHEMA_VERSION: Final = "1.1"
 _SCHEMA_VERSION_PATTERN: Final = r"^\d+\.\d+(\.\d+)?$"
 
 SchemaVersion = Annotated[
@@ -150,6 +156,63 @@ class ParagraphBlock(BaseModel):
     prov: Provenance
 
 
+class ImageRef(BaseModel):
+    """이미지 참조 — binary 자체는 IR JSON 에 inline 되지 않는다.
+
+    URI 스킴:
+
+    - ``bin://<bin_data_id>`` (기본): 상류 ``Picture.image_attr.bin_data_id`` 그대로.
+      ``Document.bytes_for_image(picture)`` 로 raw bytes 해석.
+    - ``data:image/...;base64,...``: embedded 모드 (v0.4.0+ opt-in 검토)
+    - ``file://path``: external 모드 (v0.4.0+ opt-in 검토)
+
+    ``uri`` 는 strict 검증 회피를 위해 plain ``str`` — JSON Schema strict mode 가
+    ``format: uri`` 를 거부하는 경우가 있고, ``bin://`` / ``data:`` 모두 허용해야 하므로.
+    URL 검증은 사용자 책임.
+
+    width/height/dpi 는 v0.3.0 S1 에서 항상 ``None`` — 상류 Picture 가 픽셀
+    dimension 을 직접 노출하지 않으며 (border 좌표만 노출) HWPUNIT 계산은
+    v0.4.0+ 에서 검토.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    uri: str
+    mime_type: str
+    width: int | None = None
+    height: int | None = None
+    dpi: int | None = None
+
+
+class PictureBlock(BaseModel):
+    """그림 블록 — HWP ``Control::Picture``.
+
+    ``image is None`` 은 명시적 broken reference — 상류 ``Picture.image_attr.bin_data_id``
+    가 0 (미할당) 인 케이스만 해당. ``bin_data_id`` 가 0 이 아니어도 실제 binary
+    lookup 이 실패할 수 있다 (Link 타입이거나 bin_data_content 누락) — 이 경우
+    ImageRef 는 ``mime_type="application/octet-stream"`` 으로 출고되고 실패는
+    ``Document.bytes_for_image`` 호출 시점에 ValueError 로 표면화된다 (forensics
+    위해 bin_data_id 자체는 URI 에 보존).
+
+    HWP Picture 는 항상 1:1 캡션 (``Picture.caption: Option<Caption>``) 을 가지지만
+    v0.3.0 S1 시점 ``CaptionBlock`` 미구현 — caption 필드는 S3 에서 추가된다.
+    그 사이엔 ``description`` (HWP alt-text) 만 노출.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["picture"] = "picture"
+    image: ImageRef | None = None
+    description: str | None = Field(
+        default=None,
+        description=(
+            "HWP 의 alt-text — 상류 caption paragraph 평문 fallback 또는 "
+            "shape description. S3 에서 별도 caption: CaptionBlock 필드 추가 예정."
+        ),
+    )
+    prov: Provenance
+
+
 class UnknownBlock(BaseModel):
     """Forward-compatibility catch-all.
 
@@ -219,7 +282,7 @@ class TableBlock(BaseModel):
     prov: Provenance
 
 
-_KNOWN_KINDS: Final = frozenset({"paragraph", "table"})
+_KNOWN_KINDS: Final = frozenset({"paragraph", "table", "picture"})
 
 
 def _block_discriminator(v: Any) -> str:
@@ -235,6 +298,7 @@ def _block_discriminator(v: Any) -> str:
 Block = Annotated[
     Annotated[ParagraphBlock, Tag("paragraph")]
     | Annotated[TableBlock, Tag("table")]
+    | Annotated[PictureBlock, Tag("picture")]
     | Annotated[UnknownBlock, Tag("unknown")],
     Discriminator(_block_discriminator),
 ]
@@ -243,7 +307,9 @@ Block = Annotated[
 class Furniture(BaseModel):
     """장식 노드 컨테이너 — RAG 가 임베딩에서 필터링 가능.
 
-    현재 파서는 본문 블록을 넣지 않으므로 세 리스트는 기본적으로 비어있다.
+    v0.3.0 부터 ``page_headers`` / ``page_footers`` 가 실제 채워진다.
+    ``footnotes`` 는 v0.3.0 S2 (FootnoteBlock 도입) 에서 채움. ``endnotes`` 신규
+    필드 추가도 S2.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)

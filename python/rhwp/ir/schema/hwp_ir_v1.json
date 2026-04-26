@@ -76,7 +76,7 @@
     },
     "Furniture": {
       "additionalProperties": false,
-      "description": "장식 노드 컨테이너 — RAG 가 임베딩에서 필터링 가능.\n\n현재 파서는 본문 블록을 넣지 않으므로 세 리스트는 기본적으로 비어있다.",
+      "description": "장식 노드 컨테이너 — RAG 가 임베딩에서 필터링 가능.\n\nv0.3.0 부터 ``page_headers`` / ``page_footers`` 가 실제 채워진다.\n``footnotes`` 는 v0.3.0 S2 (FootnoteBlock 도입) 에서 채움. ``endnotes`` 신규\n필드 추가도 S2.",
       "properties": {
         "page_headers": {
           "items": {
@@ -86,6 +86,9 @@
               },
               {
                 "$ref": "#/$defs/TableBlock"
+              },
+              {
+                "$ref": "#/$defs/PictureBlock"
               },
               {
                 "$ref": "#/$defs/UnknownBlock"
@@ -105,6 +108,9 @@
                 "$ref": "#/$defs/TableBlock"
               },
               {
+                "$ref": "#/$defs/PictureBlock"
+              },
+              {
                 "$ref": "#/$defs/UnknownBlock"
               }
             ]
@@ -122,6 +128,9 @@
                 "$ref": "#/$defs/TableBlock"
               },
               {
+                "$ref": "#/$defs/PictureBlock"
+              },
+              {
                 "$ref": "#/$defs/UnknownBlock"
               }
             ]
@@ -131,6 +140,62 @@
         }
       },
       "title": "Furniture",
+      "type": "object"
+    },
+    "ImageRef": {
+      "additionalProperties": false,
+      "description": "이미지 참조 — binary 자체는 IR JSON 에 inline 되지 않는다.\n\nURI 스킴:\n\n- ``bin://<bin_data_id>`` (기본): 상류 ``Picture.image_attr.bin_data_id`` 그대로.\n  ``Document.bytes_for_image(picture)`` 로 raw bytes 해석.\n- ``data:image/...;base64,...``: embedded 모드 (v0.4.0+ opt-in 검토)\n- ``file://path``: external 모드 (v0.4.0+ opt-in 검토)\n\n``uri`` 는 strict 검증 회피를 위해 plain ``str`` — JSON Schema strict mode 가\n``format: uri`` 를 거부하는 경우가 있고, ``bin://`` / ``data:`` 모두 허용해야 하므로.\nURL 검증은 사용자 책임.\n\nwidth/height/dpi 는 v0.3.0 S1 에서 항상 ``None`` — 상류 Picture 가 픽셀\ndimension 을 직접 노출하지 않으며 (border 좌표만 노출) HWPUNIT 계산은\nv0.4.0+ 에서 검토.",
+      "properties": {
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        },
+        "mime_type": {
+          "title": "Mime Type",
+          "type": "string"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "dpi": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dpi"
+        }
+      },
+      "required": [
+        "uri",
+        "mime_type"
+      ],
+      "title": "ImageRef",
       "type": "object"
     },
     "InlineRun": {
@@ -235,6 +300,50 @@
         "prov"
       ],
       "title": "ParagraphBlock",
+      "type": "object"
+    },
+    "PictureBlock": {
+      "additionalProperties": false,
+      "description": "그림 블록 — HWP ``Control::Picture``.\n\n``image is None`` 은 명시적 broken reference — 상류 ``Picture.image_attr.bin_data_id``\n가 0 (미할당) 인 케이스만 해당. ``bin_data_id`` 가 0 이 아니어도 실제 binary\nlookup 이 실패할 수 있다 (Link 타입이거나 bin_data_content 누락) — 이 경우\nImageRef 는 ``mime_type=\"application/octet-stream\"`` 으로 출고되고 실패는\n``Document.bytes_for_image`` 호출 시점에 ValueError 로 표면화된다 (forensics\n위해 bin_data_id 자체는 URI 에 보존).\n\nHWP Picture 는 항상 1:1 캡션 (``Picture.caption: Option<Caption>``) 을 가지지만\nv0.3.0 S1 시점 ``CaptionBlock`` 미구현 — caption 필드는 S3 에서 추가된다.\n그 사이엔 ``description`` (HWP alt-text) 만 노출.",
+      "properties": {
+        "kind": {
+          "const": "picture",
+          "default": "picture",
+          "title": "Kind",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "HWP 의 alt-text — 상류 caption paragraph 평문 fallback 또는 shape description. S3 에서 별도 caption: CaptionBlock 필드 추가 예정.",
+          "title": "Description"
+        },
+        "prov": {
+          "$ref": "#/$defs/Provenance"
+        }
+      },
+      "required": [
+        "prov"
+      ],
+      "title": "PictureBlock",
       "type": "object"
     },
     "Provenance": {
@@ -429,6 +538,9 @@
                 "$ref": "#/$defs/TableBlock"
               },
               {
+                "$ref": "#/$defs/PictureBlock"
+              },
+              {
                 "$ref": "#/$defs/UnknownBlock"
               }
             ]
@@ -455,6 +567,7 @@
           "not": {
             "enum": [
               "paragraph",
+              "picture",
               "table"
             ]
           }
@@ -481,7 +594,7 @@
       "type": "string"
     },
     "schema_version": {
-      "default": "1.0",
+      "default": "1.1",
       "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
       "title": "Schema Version",
       "type": "string"
@@ -515,6 +628,9 @@
           },
           {
             "$ref": "#/$defs/TableBlock"
+          },
+          {
+            "$ref": "#/$defs/PictureBlock"
           },
           {
             "$ref": "#/$defs/UnknownBlock"

@@ -28,7 +28,8 @@ def test_to_ir_returns_hwp_document(parsed_hwp: rhwp.Document):
     ir = parsed_hwp.to_ir()
     assert isinstance(ir, HwpDocument)
     assert ir.schema_name == "HwpDocument"
-    assert ir.schema_version == "1.0"
+    # ^ v0.3.0 S1 부터 1.1 — picture / header / footer 블록 추가 (ir-expansion.md §스키마 버저닝)
+    assert ir.schema_version == "1.1"
 
 
 def test_to_ir_caches_same_object(parsed_hwp: rhwp.Document):
@@ -60,10 +61,16 @@ def test_paragraph_block_count_matches(parsed_hwp: rhwp.Document):
 
 
 def test_body_contains_only_known_block_kinds(parsed_hwp: rhwp.Document):
-    """v0.2.0 (S3) 는 ParagraphBlock / TableBlock 둘만 노출. UnknownBlock 출현 금지."""
+    """v0.3.0 S1 까지는 ParagraphBlock / TableBlock / PictureBlock 만 노출. UnknownBlock 출현 금지.
+
+    이후 stage 에서 Formula/Footnote/Endnote/ListItem/Caption/Toc/Field 가 추가될 때
+    이 set 도 갱신한다.
+    """
+    from rhwp.ir.nodes import PictureBlock
+
     ir = parsed_hwp.to_ir()
     for b in ir.body:
-        assert isinstance(b, (ParagraphBlock, TableBlock)), (
+        assert isinstance(b, (ParagraphBlock, TableBlock, PictureBlock)), (
             f"unexpected block kind: {type(b).__name__}"
         )
 
@@ -191,14 +198,26 @@ def test_ir_is_frozen(parsed_hwp: rhwp.Document):
         ir.body = []  # type: ignore[misc]
 
 
-# * Furniture / metadata — v0.2.0 은 전부 비어있거나 None
+# * Furniture / metadata
 
 
-def test_furniture_is_empty(parsed_hwp: rhwp.Document):
+def test_furniture_lists_have_correct_types(parsed_hwp: rhwp.Document):
+    """v0.3.0 S1 부터 page_headers / page_footers 는 채워질 수 있다 (샘플에 머리글/꼬리말 있을 시).
+
+    footnotes 는 v0.3.0 S2 의 FootnoteBlock 도입 전까지 빈 리스트. 본 테스트는
+    리스트 타입 + footnotes 비어있음만 검증 — 채움 여부는 test_ir_furniture.py 에서
+    샘플별 구체 검증.
+    """
+    from rhwp.ir.nodes import PictureBlock, UnknownBlock
+
     ir = parsed_hwp.to_ir()
-    assert ir.furniture.page_headers == []
-    assert ir.furniture.page_footers == []
+    assert isinstance(ir.furniture.page_headers, list)
+    assert isinstance(ir.furniture.page_footers, list)
+    # ^ S1 시점 footnotes 는 mapper 가 채우지 않음 (S2 에서 채움)
     assert ir.furniture.footnotes == []
+    # ^ 채워진 entry 는 모두 known Block 유니온 멤버여야 함
+    for entry in ir.furniture.page_headers + ir.furniture.page_footers:
+        assert isinstance(entry, (ParagraphBlock, TableBlock, PictureBlock, UnknownBlock))
 
 
 def test_metadata_fields_are_none(parsed_hwp: rhwp.Document):
@@ -239,7 +258,8 @@ def test_hwp_document_direct_construction_allows_null_source():
     ir = HwpDocument()
     assert ir.source is None
     assert ir.schema_name == "HwpDocument"
-    assert ir.schema_version == "1.0"
+    # ^ v0.3.0 S1 부터 1.1
+    assert ir.schema_version == "1.1"
 
 
 def test_hwp_document_json_null_source_roundtrip():

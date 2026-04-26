@@ -68,6 +68,7 @@ jobs:
             tests/test_langchain_loader.py tests/test_langchain_loader_ir.py \
             tests/test_ir_schema.py tests/test_ir_roundtrip.py tests/test_ir_tables.py \
             tests/test_ir_iter_blocks.py tests/test_ir_schema_export.py \
+            tests/test_ir_picture.py tests/test_ir_furniture.py \
             tests/conftest.py tests/type_check_samples.py
       - name: Run pyright (intentional errors — expect 4)
         if: matrix.lint

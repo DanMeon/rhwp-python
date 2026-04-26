@@ -44,6 +44,7 @@ Phase 1 (v0.1.x) 은 GA 완료로 별도 phase 문서 없음.
 |---|---|---|
 | v0.1.0 | [implementation/v0.1.0/migration.md](../implementation/v0.1.0/migration.md) | [verification/v0.1.0/spinoff-review.md](../verification/v0.1.0/spinoff-review.md) |
 | v0.2.0 | [implementation/v0.2.0/stages/](../implementation/v0.2.0/stages/) (S1~S5) | — |
+| v0.3.0 (in-progress) | [implementation/v0.3.0/stages/](../implementation/v0.3.0/stages/) (S1) | — |
 
 ## 원칙
 

@@ -1,8 +1,8 @@
 """rhwp.ir._raw_types — Rust `#[derive(IntoPyObject)]` 출력의 TypedDict 미러.
 
 ``src/ir.rs`` 의 ``RawDocument`` / ``RawParagraph`` / ``RawTable`` / ``RawCell`` /
-``RawCharRun`` struct 가 Python 에 PyDict 로 출고되는데, 그 dict 의 key 구조를
-정적 타입으로 고정한다.
+``RawCharRun`` / ``RawPicture`` / ``RawImageRef`` struct 가 Python 에 PyDict 로
+출고되는데, 그 dict 의 key 구조를 정적 타입으로 고정한다.
 
 ### 왜 TypedDict 인가
 
@@ -52,10 +52,28 @@ class RawTable(TypedDict):
     caption: str | None
 
 
+class RawImageRef(TypedDict):
+    """``src/ir.rs::RawImageRef``. URI 합성 / mime 매핑은 mapper 책임."""
+
+    bin_data_id: int
+    extension: str | None
+    has_content: bool
+
+
+class RawPicture(TypedDict):
+    """``src/ir.rs::RawPicture``. ``image=None`` 은 broken reference (bin_data_id=0)."""
+
+    section_idx: int
+    para_idx: int
+    image: RawImageRef | None
+    description: str | None
+
+
 class RawParagraph(TypedDict):
     """``src/ir.rs::RawParagraph``.
 
     ``tables`` 는 문단의 ``controls`` 중 ``Control::Table`` 만 추출된 리스트.
+    ``pictures`` 는 ``Control::Picture`` 만 추출된 리스트 (v0.3.0 S1 신규).
     ``section_idx`` / ``para_idx`` 는 외부 paragraph 의 위치 — 셀 내부 문단이라도
     외부 표가 속한 문단의 값을 공유한다 (Provenance 계약).
     """
@@ -65,11 +83,19 @@ class RawParagraph(TypedDict):
     text: str
     char_runs: list[RawCharRun]
     tables: list[RawTable]
+    pictures: list[RawPicture]
 
 
 class RawDocument(TypedDict):
-    """``src/ir.rs::RawDocument`` — ``to_ir`` Rust→Python 경계의 루트."""
+    """``src/ir.rs::RawDocument`` — ``to_ir`` Rust→Python 경계의 루트.
+
+    ``headers`` / ``footers`` (v0.3.0 S1 신규) 는 furniture.page_headers /
+    page_footers 로 매핑된다. 본문 paragraph 안의 ``Control::Header`` /
+    ``Control::Footer`` 와 SectionDef.master_pages 안의 동일 컨트롤을 평탄화.
+    """
 
     source_uri: str | None
     section_count: int
     paragraphs: list[RawParagraph]
+    headers: list[RawParagraph]
+    footers: list[RawParagraph]

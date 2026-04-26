@@ -19,10 +19,16 @@ from rhwp.ir.nodes import (
     HwpDocument as HwpDocument,
 )
 from rhwp.ir.nodes import (
+    ImageRef as ImageRef,
+)
+from rhwp.ir.nodes import (
     InlineRun as InlineRun,
 )
 from rhwp.ir.nodes import (
     ParagraphBlock as ParagraphBlock,
+)
+from rhwp.ir.nodes import (
+    PictureBlock as PictureBlock,
 )
 from rhwp.ir.nodes import (
     Provenance as Provenance,
@@ -62,8 +68,10 @@ __all__ = [
     "DocumentSource",
     "Furniture",
     "HwpDocument",
+    "ImageRef",
     "InlineRun",
     "ParagraphBlock",
+    "PictureBlock",
     "Provenance",
     "SCHEMA_DIALECT",
     "SCHEMA_ID",

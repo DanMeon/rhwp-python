@@ -195,6 +195,21 @@ impl PyDocument {
             .clone_ref(py))
     }
 
+    /// `bin_data_id` (1-based) 에 해당하는 이미지 raw bytes 를 반환.
+    ///
+    /// `Document.bytes_for_image(picture)` Python 헬퍼가 ``picture.image.uri`` 의
+    /// ``bin://`` 스킴을 파싱한 결과를 본 메서드에 위임한다. 상류 BinData 가
+    /// Embedding 타입이 아니거나 (Link/Storage) `bin_data_content` 에 누락된
+    /// 경우 None — Python wrapper 가 ValueError 로 변환.
+    fn bytes_for_image_id<'py>(
+        &self,
+        py: Python<'py>,
+        bin_data_id: u16,
+    ) -> PyResult<Option<Bound<'py, PyBytes>>> {
+        Ok(ir::lookup_bin_data_bytes(self.inner.document(), bin_data_id)
+            .map(|bytes| PyBytes::new(py, bytes)))
+    }
+
     /// IR 을 JSON 문자열로 반환한다. `to_ir()` 캐시를 공유한다.
     ///
     /// `indent` 를 주면 Pydantic `model_dump_json(indent=...)` 으로 들여쓰기.

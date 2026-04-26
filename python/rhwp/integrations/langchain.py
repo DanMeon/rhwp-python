@@ -26,7 +26,7 @@ from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
 
 import rhwp
-from rhwp.ir.nodes import Block, ParagraphBlock, TableBlock, UnknownBlock
+from rhwp.ir.nodes import Block, ParagraphBlock, PictureBlock, TableBlock, UnknownBlock
 
 LoadMode = Literal["single", "paragraph", "ir-blocks"]
 
@@ -153,6 +153,19 @@ def _block_to_content_and_meta(block: Block) -> tuple[str, dict[str, Any]]:
             "text": block.text,
             "caption": block.caption,
         }
+    if isinstance(block, PictureBlock):
+        # ^ description (HWP alt-text) 을 page_content 로 — 빈 description 은 lazy_load
+        #   상위에서 strip 후 skip. image meta 는 RAG 가 picture 를 별도 색인할 때 활용
+        content = block.description or ""
+        meta: dict[str, Any] = {
+            "kind": "picture",
+            "section_idx": block.prov.section_idx,
+            "para_idx": block.prov.para_idx,
+        }
+        if block.image is not None:
+            meta["image_uri"] = block.image.uri
+            meta["image_mime"] = block.image.mime_type
+        return content, meta
     # 새 Block variant 가 추가되면 그 variant 의 elif 를 이 assert 보다 위에 먼저
     # 추가해야 한다. 그러지 않으면 AssertionError 로 fail-fast (silent fallback 방지)
     assert isinstance(block, UnknownBlock)
