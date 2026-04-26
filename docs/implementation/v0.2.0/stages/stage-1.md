@@ -1,5 +1,7 @@
 # Stage S1 — Pydantic 모델 초안 (완료)
 
+**Status**: Frozen · **GA**: v0.2.0 · **Last updated**: 2026-04-24
+
 **작업일**: 2026-04-24
 **계획 문서**: [roadmap/v0.2.0/ir.md](../../../roadmap/v0.2.0/ir.md) §구현 스테이지 분할
 **설계 근거**: [design/v0.2.0/ir-design-research.md](../../../design/v0.2.0/ir-design-research.md)

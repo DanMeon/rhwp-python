@@ -71,8 +71,14 @@ All rules from `~/.claude/CLAUDE.md` apply. This file adds only project-specific
 - Every release records the `external/rhwp` submodule commit hash in CHANGELOG
 
 ### Documentation
-- `docs/` convention: see `docs/roadmap/README.md` (4-axis structure, version-scoped subdirectories, stage splitting rules)
-- README.md only where an index is actually needed (currently `roadmap/README.md`)
+Authoritative policy is `docs/CONVENTIONS.md` — read it before any docs work. Active spec index SSOT is `docs/roadmap/README.md`.
+
+Hard rules (auto-applied without further instruction):
+- Every per-version spec / ADR / impl-log / verification report carries a Status metadata line right after its first heading: `**Status**: <Active | Draft | Frozen | Superseded by [link]> · **GA**: vX.Y.Z` *or* `**Target**: vX.Y.Z` · `**Last updated**: YYYY-MM-DD`. Living docs (README, CHANGELOG, CLAUDE.md, CONVENTIONS itself) skip the Status line.
+- **Frozen spec body is immutable** — typo / broken-link fixes only. Decision changes go to a *new* spec; the old one's Status flips to `Superseded by [link]` (single-line edit).
+- **Spec ↔ spec direct cross-links are forbidden** even within the same `vX.Y.Z/` directory. Use `phase-N.md` § two-axis-integration sections (or `roadmap/README.md`) as the bridge. **Exception**: pair files `<topic>.md` ↔ `<topic>-research.md` (the spec ↔ ADR pair) link directly.
+- **`phase-N.md` carries no concrete decisions / open issues** — those belong in `vX.Y.Z/*.md`. Phase docs hold intent, scope, and two-axis integration only.
+- New version `vX.Y.Z`: create `docs/roadmap/vX.Y.Z/<topic>.md` + `docs/design/vX.Y.Z/<topic>-research.md` (Status: Draft, Target: vX.Y.Z), then add a row to the active-spec index in `roadmap/README.md`. On GA: flip Status Draft → Frozen, write `implementation/vX.Y.Z/...` (Frozen on creation), refresh README index.
 
 ### CI / secrets
 - No secrets required. PyPI publish uses Trusted Publisher (OIDC) — no API token to manage

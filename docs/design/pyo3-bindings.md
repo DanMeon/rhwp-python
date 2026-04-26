@@ -1,5 +1,7 @@
 # PyO3 Python 바인딩 구현 가이드 (Phase 1)
 
+**Status**: Active · **Last updated**: 2026-04-23
+
 > **문서 목적**: rhwp를 PyPI 배포 가능한 Python 패키지로 만드는 작업의 기술 참조. 다른 Claude Code 세션이 이 문서를 기반으로 구현한다.
 >
 > **배경**: GitHub Issue [#227](https://github.com/edwardkim/rhwp/issues/227) 에서 시작. **사용자 Fork(`DanMeon/rhwp`)에서 독립 진행**하는 개인 패키지화 작업이다. 상류 리포(`edwardkim/rhwp`)에 PR 제출 여부는 별도 판단.

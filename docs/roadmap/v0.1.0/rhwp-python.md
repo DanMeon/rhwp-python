@@ -1,5 +1,7 @@
 # 0.1.0 — Phase 1 바인딩 분사 + PyPI 배포
 
+**Status**: Frozen · **GA**: v0.1.0 (patch v0.1.1) · **Last updated**: 2026-04-23
+
 rhwp Rust 코어 ([edwardkim/rhwp](https://github.com/edwardkim/rhwp)) 에 대한 PyO3 Python 바인딩을 별도 리포 `DanMeon/rhwp-python` 으로 분사하고 PyPI 에 `rhwp-python` 으로 배포한다. Phase 1 기능은 원본 `rhwp-python-heuristic/rhwp-python/` 에서 이관하며 기능 추가 없음.
 
 관련 상류 이슈: [edwardkim/rhwp#227](https://github.com/edwardkim/rhwp/issues/227) — 2차 회신에서 메인테이너 승인.

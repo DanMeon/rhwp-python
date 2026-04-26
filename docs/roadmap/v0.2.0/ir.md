@@ -1,5 +1,7 @@
 # 0.2.0 — Document IR v1 (JSON 직렬화형 문서 모델)
 
+**Status**: Frozen · **GA**: v0.2.0 · **Last updated**: 2026-04-25
+
 `rhwp-python` 을 단순 텍스트 추출기에서 **RAG/LLM 파이프라인이 직접 소비 가능한 구조화 문서 라이브러리** 로 전환하는 첫 단계. Pydantic V2 기반 공개 데이터 모델과 JSON 스키마를 고정하고, Rust 코어가 보유한 구조 정보를 Python 사용자에게 타입-안전하게 노출한다.
 
 ## 방향 전환 배경 — CLI 계획의 폐기

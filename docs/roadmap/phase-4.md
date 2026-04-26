@@ -1,5 +1,7 @@
 # Phase 4 — JSON IR → HWP 역생성
 
+**Status**: Active · **Target**: v0.7.0 ~ v1.0.0 · **Last updated**: 2026-04-26
+
 **대상 버전**: v0.7.0 ~ v1.0.0 (안정화 + writeback 지원)
 **선행 조건**: Phase 3 (v0.6.0 까지) GA + rhwp Rust 코어의 HWP writer API 안정
 

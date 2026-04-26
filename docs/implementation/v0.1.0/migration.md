@@ -1,5 +1,7 @@
 # 분사·이관 작업 로그
 
+**Status**: Frozen · **GA**: v0.1.0 · **Last updated**: 2026-04-23
+
 **작업일**: 2026-04-23
 **작업자**: Claude (Opus 4.7) + DanMeon
 **범위**: `rhwp-python-heuristic/rhwp-python/` → `DanMeon/rhwp-python` 별도 리포 분사

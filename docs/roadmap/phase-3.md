@@ -1,5 +1,7 @@
 # Phase 3 — view 렌더러 + RAG 프레임워크 통합
 
+**Status**: Active · **Target**: v0.4.0 ~ v0.6.0 · **Last updated**: 2026-04-26
+
 **대상 버전**: v0.4.0 ~ v0.6.0
 **선행 조건**: Phase 2 IR 확장 (v0.3.0) 안정
 
