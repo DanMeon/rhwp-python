@@ -171,25 +171,49 @@ jobs:
           python-version: "3.12"
       - run: uv sync --no-install-project --group all
       - run: uv run maturin develop --release
-      # * macOS PNG 렌더 hang 진단 — Korean font 부재 가설 검증 + thread dump
-      - name: Install Korean font (macOS diag)
+      # * macOS PNG 렌더 hang 진단 — 첫 round 결과로 폰트 부재 가설 기각 후, native stack sampling 으로 hang 위치 식별
+      - name: Korean font inventory (macOS diag)
         if: runner.os == 'macOS'
-        run: brew install --cask font-nanum-gothic
-      - name: Install pytest-timeout (macOS diag)
-        if: runner.os == 'macOS'
-        run: uv pip install pytest-timeout
+        run: |
+          brew install --cask font-nanum-gothic
+          echo "=== fc-list 한글 폰트 ==="
+          (fc-list :lang=ko 2>&1 | head -10) || echo "(fc-list 미설치 또는 미인식)"
+          echo "=== system_profiler 나눔 ==="
+          system_profiler SPFontsDataType 2>&1 | grep -iE "nanum|gothic" | head -10 || echo "(미인식)"
       - name: Run pytest (non-macOS)
         if: runner.os != 'macOS'
         run: uv run pytest tests/ -m "not slow" -v
-      - name: Run pytest (macOS, faulthandler + 5min timeout)
+      - name: Run pytest (macOS) — sample native stack on hang
         if: runner.os == 'macOS'
         env:
-          PYTHONFAULTHANDLER: '1'
           RUST_BACKTRACE: full
+          RUST_LOG: debug
         run: |
-          uv run pytest tests/ -m "not slow" -v -s \
-            --timeout=300 --timeout-method=thread \
-            -o faulthandler_timeout=240
+          set +e
+          uv run pytest tests/test_render_png.py::TestRenderPng::test_returns_png_magic -v -s &
+          PYTEST_PID=$!
+          # ^ 정상이면 분 단위 안에 끝남. 90초 wait 후 살아있으면 hang 으로 판정.
+          for i in $(seq 1 9); do
+            sleep 10
+            if ! kill -0 "$PYTEST_PID" 2>/dev/null; then
+              wait "$PYTEST_PID"; EXIT=$?
+              echo "pytest 종료 in ~$((i*10))s exit=$EXIT"
+              # 정상 종료라면 나머지 테스트도 돌려서 회귀 가드
+              if [ "$EXIT" = "0" ]; then
+                exec uv run pytest tests/ -m "not slow" -v
+              fi
+              exit $EXIT
+            fi
+          done
+          echo "=== HANG DETECTED — sampling native stacks ==="
+          PIDS="$PYTEST_PID $(pgrep -P "$PYTEST_PID" || true)"
+          for PID in $PIDS; do
+            kill -0 "$PID" 2>/dev/null || continue
+            echo "----- sample PID=$PID (20s) -----"
+            sample "$PID" 20 2>&1 | tail -400 || true
+          done
+          kill -9 "$PYTEST_PID" 2>/dev/null
+          exit 1
 
   # * PDF 렌더링 — 느려서 별도 잡, Linux wheel 재사용
   test-slow:
