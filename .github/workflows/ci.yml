@@ -229,18 +229,17 @@ jobs:
           name: macos-png-hang-samples
           path: /tmp/diag/
           if-no-files-found: warn
-      # * 상류 CLI 자체도 hang 하는지 확인 — rhwp export-svg 가 같은 FontMgr 진입점을 거침
+      # * 상류 CLI 자체도 hang 하는지 확인 — rhwp export-svg 가 같은 FontMgr 진입점을 거침. workspace target 이 root 에 있음 (Cargo.toml workspace) 이라 working-directory 안 잡고 root 에서 빌드.
       - name: Upstream rhwp CLI 재현 (macOS, export-svg)
         if: always() && runner.os == 'macOS'
-        working-directory: external/rhwp
         run: |
           set +e
-          cargo build --release --bin rhwp 2>&1 | tail -5
-          BIN=./target/release/rhwp
-          [ -x "$BIN" ] || { echo "(rhwp 바이너리 빌드 실패)"; exit 0; }
+          cargo build --release --bin rhwp 2>&1 | tail -3
+          BIN=target/release/rhwp
+          [ -x "$BIN" ] || { echo "(빌드 산출물 없음)"; find . -name "rhwp" -type f -maxdepth 5 2>/dev/null | head -5; exit 0; }
           mkdir -p /tmp/svg_diag
           echo "=== export-svg page 0, 90s timeout ==="
-          time timeout 90 "$BIN" export-svg samples/aift.hwp -o /tmp/svg_diag -p 0
+          time timeout 90 "$BIN" export-svg external/rhwp/samples/aift.hwp -o /tmp/svg_diag -p 0
           RC=$?
           case "$RC" in
             124) echo "⚠️ TIMEOUT — 상류 CLI 도 동일하게 hang" ;;
