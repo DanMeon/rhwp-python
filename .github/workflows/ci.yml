@@ -171,7 +171,25 @@ jobs:
           python-version: "3.12"
       - run: uv sync --no-install-project --group all
       - run: uv run maturin develop --release
-      - run: uv run pytest tests/ -m "not slow" -v
+      # * macOS PNG 렌더 hang 진단 — Korean font 부재 가설 검증 + thread dump
+      - name: Install Korean font (macOS diag)
+        if: runner.os == 'macOS'
+        run: brew install --cask font-nanum-gothic
+      - name: Install pytest-timeout (macOS diag)
+        if: runner.os == 'macOS'
+        run: uv pip install pytest-timeout
+      - name: Run pytest (non-macOS)
+        if: runner.os != 'macOS'
+        run: uv run pytest tests/ -m "not slow" -v
+      - name: Run pytest (macOS, faulthandler + 5min timeout)
+        if: runner.os == 'macOS'
+        env:
+          PYTHONFAULTHANDLER: '1'
+          RUST_BACKTRACE: full
+        run: |
+          uv run pytest tests/ -m "not slow" -v -s \
+            --timeout=300 --timeout-method=thread \
+            -o faulthandler_timeout=240
 
   # * PDF 렌더링 — 느려서 별도 잡, Linux wheel 재사용
   test-slow:
