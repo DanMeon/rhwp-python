@@ -187,9 +187,9 @@ jobs:
         if: runner.os == 'macOS'
         env:
           RUST_BACKTRACE: full
-          RUST_LOG: debug
         run: |
           set +e
+          mkdir -p /tmp/diag
           uv run pytest tests/test_render_png.py::TestRenderPng::test_returns_png_magic -v -s &
           PYTEST_PID=$!
           # ^ 정상이면 분 단위 안에 끝남. 90초 wait 후 살아있으면 hang 으로 판정.
@@ -198,7 +198,6 @@ jobs:
             if ! kill -0 "$PYTEST_PID" 2>/dev/null; then
               wait "$PYTEST_PID"; EXIT=$?
               echo "pytest 종료 in ~$((i*10))s exit=$EXIT"
-              # 정상 종료라면 나머지 테스트도 돌려서 회귀 가드
               if [ "$EXIT" = "0" ]; then
                 exec uv run pytest tests/ -m "not slow" -v
               fi
@@ -206,14 +205,27 @@ jobs:
             fi
           done
           echo "=== HANG DETECTED — sampling native stacks ==="
+          # ^ 자식까지 포함 (uv → python pytest). sample 출력을 파일로 받아 artifact 업로드.
           PIDS="$PYTEST_PID $(pgrep -P "$PYTEST_PID" || true)"
           for PID in $PIDS; do
             kill -0 "$PID" 2>/dev/null || continue
-            echo "----- sample PID=$PID (20s) -----"
-            sample "$PID" 20 2>&1 | tail -400 || true
+            OUT="/tmp/diag/sample_${PID}.txt"
+            echo "----- sampling PID=$PID → $OUT -----"
+            sample "$PID" 15 -file "$OUT" 2>&1 | head -3
+            echo ">>> Call graph head (PID=$PID) <<<"
+            awk '/^Call graph:/,/^Binary Images:/' "$OUT" 2>/dev/null | head -120 || echo "(파일 미생성)"
+            echo
           done
+          ls -la /tmp/diag/
           kill -9 "$PYTEST_PID" 2>/dev/null
           exit 1
+      - name: Upload sample diagnostic artifacts
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-png-hang-samples
+          path: /tmp/diag/
+          if-no-files-found: warn
 
   # * PDF 렌더링 — 느려서 별도 잡, Linux wheel 재사용
   test-slow:
