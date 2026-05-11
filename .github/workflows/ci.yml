@@ -240,14 +240,28 @@ jobs:
           [ -x "$BIN" ] || BIN=./target/release/rhwp
           [ -x "$BIN" ] || { echo "(빌드 산출물 없음)"; find ../.. -name "rhwp" -type f -maxdepth 5 2>/dev/null | head -5; exit 0; }
           mkdir -p /tmp/svg_diag
-          echo "=== export-svg page 0, 90s timeout · using $BIN ==="
-          time timeout 90 "$BIN" export-svg samples/aift.hwp -o /tmp/svg_diag -p 0
-          RC=$?
-          case "$RC" in
-            124) echo "⚠️ TIMEOUT — 상류 CLI 도 동일하게 hang" ;;
-            0)   echo "✓ 상류 CLI export-svg 정상 종료 — PNG path 특이성" ;;
-            *)   echo "exit=$RC (정상도 timeout 도 아님)" ;;
-          esac
+          echo "=== export-svg page 0, 90s soft timeout · using $BIN ==="
+          # macOS 는 GNU `timeout` 미포함 — background + sleep loop 로 구현
+          "$BIN" export-svg samples/aift.hwp -o /tmp/svg_diag -p 0 &
+          CLI_PID=$!
+          START=$(date +%s)
+          while kill -0 "$CLI_PID" 2>/dev/null; do
+            sleep 5
+            ELAPSED=$(( $(date +%s) - START ))
+            if [ "$ELAPSED" -ge 90 ]; then
+              echo "⚠️ TIMEOUT ${ELAPSED}s — 상류 CLI 도 동일하게 hang"
+              kill -9 "$CLI_PID" 2>/dev/null
+              wait "$CLI_PID" 2>/dev/null
+              exit 0
+            fi
+          done
+          wait "$CLI_PID"; RC=$?
+          ELAPSED=$(( $(date +%s) - START ))
+          if [ "$RC" = "0" ]; then
+            echo "✓ 상류 CLI export-svg ${ELAPSED}s 에 정상 종료 — PNG path 특이성"
+          else
+            echo "exit=$RC after ${ELAPSED}s (timeout 도 정상도 아님)"
+          fi
 
   # * PDF 렌더링 — 느려서 별도 잡, Linux wheel 재사용
   test-slow:
