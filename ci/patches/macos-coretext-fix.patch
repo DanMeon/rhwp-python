@@ -39,7 +39,7 @@ index eea1f807..5193fedf 100644
                  for family in &families {
 +                    // [diagnostic patch] macOS 의 CoreText downloadable lookup IPC
 +                    // hang 회피 — 시스템에 없는 family 는 match_family_style 에 던지지 않음.
-+                    if !self.system_families.contains(family.as_str()) {
++                    if !self.system_families.contains(AsRef::<str>::as_ref(family)) {
 +                        continue;
 +                    }
                      if let Some(tf) = self.font_mgr.match_family_style(family, font_style) {
