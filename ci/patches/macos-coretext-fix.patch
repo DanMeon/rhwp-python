@@ -1,0 +1,24 @@
+diff --git a/src/renderer/skia/renderer.rs b/src/renderer/skia/renderer.rs
+index eea1f807..33407294 100644
+--- a/src/renderer/skia/renderer.rs
++++ b/src/renderer/skia/renderer.rs
+@@ -26,6 +26,19 @@ pub struct SkiaLayerRenderer {
+ 
+ impl SkiaLayerRenderer {
+     pub fn new() -> Self {
++        // [diagnostic patch from rhwp-python ci/patches/macos-coretext-fix.patch]
++        // macOS 의 CoreText downloadable-font lookup IPC (fontd mach port) 무한 대기 회피 시도.
++        #[cfg(target_os = "macos")]
++        unsafe {
++            extern "C" {
++                fn CTFontManagerSetAutoActivationSetting(
++                    bundle_id: *const core::ffi::c_void,
++                    setting: u32,
++                );
++            }
++            // kCTFontManagerAutoActivationDisabled = 1
++            CTFontManagerSetAutoActivationSetting(core::ptr::null(), 1);
++        }
+         Self {
+             font_mgr: FontMgr::default(),
+             custom_typefaces: HashMap::new(),

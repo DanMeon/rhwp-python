@@ -170,6 +170,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --no-install-project --group all
+      # * 실험 patch: macOS 만 SkiaLayerRenderer::new() 진입에 CoreText auto-activation 비활성화. external/rhwp 자체에는 commit 하지 않고 runtime 에만 apply.
+      - name: Apply experimental CoreText fix (macOS only)
+        if: runner.os == 'macOS'
+        run: |
+          cd external/rhwp
+          git apply ../../ci/patches/macos-coretext-fix.patch
+          echo "=== patch applied ==="
+          git diff --stat
       - run: uv run maturin develop --release
       # * macOS PNG 렌더 hang — 3차 진단으로 CoreText downloadable-font IPC hang 확인 (TDownloadableFontManager::Download → FontRegistryUI). chain 첫 폰트 부재 시 macOS 가 다운로드 시도 → daemon 응답 없음 → 무한 IPC wait.
       # mitigation: 상류 fallback chain 의 모든 한글 폰트 사전 설치로 다운로드 lookup 자체를 막음.
