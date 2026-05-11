@@ -229,6 +229,24 @@ jobs:
           name: macos-png-hang-samples
           path: /tmp/diag/
           if-no-files-found: warn
+      # * 상류 CLI 자체도 hang 하는지 확인 — rhwp export-svg 가 같은 FontMgr 진입점을 거침
+      - name: Upstream rhwp CLI 재현 (macOS, export-svg)
+        if: always() && runner.os == 'macOS'
+        working-directory: external/rhwp
+        run: |
+          set +e
+          cargo build --release --bin rhwp 2>&1 | tail -5
+          BIN=./target/release/rhwp
+          [ -x "$BIN" ] || { echo "(rhwp 바이너리 빌드 실패)"; exit 0; }
+          mkdir -p /tmp/svg_diag
+          echo "=== export-svg page 0, 90s timeout ==="
+          time timeout 90 "$BIN" export-svg samples/aift.hwp -o /tmp/svg_diag -p 0
+          RC=$?
+          case "$RC" in
+            124) echo "⚠️ TIMEOUT — 상류 CLI 도 동일하게 hang" ;;
+            0)   echo "✓ 상류 CLI export-svg 정상 종료 — PNG path 특이성" ;;
+            *)   echo "exit=$RC (정상도 timeout 도 아님)" ;;
+          esac
 
   # * PDF 렌더링 — 느려서 별도 잡, Linux wheel 재사용
   test-slow:
