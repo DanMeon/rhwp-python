@@ -171,15 +171,18 @@ jobs:
           python-version: "3.12"
       - run: uv sync --no-install-project --group all
       - run: uv run maturin develop --release
-      # * macOS PNG 렌더 hang 진단 — 첫 round 결과로 폰트 부재 가설 기각 후, native stack sampling 으로 hang 위치 식별
-      - name: Korean font inventory (macOS diag)
+      # * macOS PNG 렌더 hang — 3차 진단으로 CoreText downloadable-font IPC hang 확인 (TDownloadableFontManager::Download → FontRegistryUI). chain 첫 폰트 부재 시 macOS 가 다운로드 시도 → daemon 응답 없음 → 무한 IPC wait.
+      # mitigation: 상류 fallback chain 의 모든 한글 폰트 사전 설치로 다운로드 lookup 자체를 막음.
+      - name: Install Korean font chain (macOS mitigation)
         if: runner.os == 'macOS'
         run: |
-          brew install --cask font-nanum-gothic
+          brew install --cask \
+            font-noto-sans-kr \
+            font-noto-serif-kr \
+            font-noto-sans-cjk \
+            font-nanum-gothic
           echo "=== fc-list 한글 폰트 ==="
-          (fc-list :lang=ko 2>&1 | head -10) || echo "(fc-list 미설치 또는 미인식)"
-          echo "=== system_profiler 나눔 ==="
-          system_profiler SPFontsDataType 2>&1 | grep -iE "nanum|gothic" | head -10 || echo "(미인식)"
+          fc-list :lang=ko 2>&1 | head -20 || echo "(fc-list 미인식)"
       - name: Run pytest (non-macOS)
         if: runner.os != 'macOS'
         run: uv run pytest tests/ -m "not slow" -v
