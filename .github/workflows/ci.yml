@@ -170,7 +170,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --no-install-project --group all
-      # * 실험 patch: macOS 만 SkiaLayerRenderer::new() 진입에 CoreText auto-activation 비활성화. external/rhwp 자체에는 commit 하지 않고 runtime 에만 apply.
+      # * 실험 patch: macOS family lookup 에 시스템 폰트 사전 필터링 적용 — match_family_style 호출 전에 멤버십 체크해 missing family 를 CoreText 에 던지지 않음. external/rhwp 자체에는 commit 하지 않고 runtime 에만 apply.
       - name: Apply experimental CoreText fix (macOS only)
         if: runner.os == 'macOS'
         run: |

@@ -1,24 +1,47 @@
 diff --git a/src/renderer/skia/renderer.rs b/src/renderer/skia/renderer.rs
-index eea1f807..33407294 100644
+index eea1f807..5193fedf 100644
 --- a/src/renderer/skia/renderer.rs
 +++ b/src/renderer/skia/renderer.rs
-@@ -26,6 +26,19 @@ pub struct SkiaLayerRenderer {
+@@ -2,7 +2,7 @@ use skia_safe::{
+     font, paint, surfaces, Canvas, Color, EncodedImageFormat, Font, FontMgr, FontStyle, Paint,
+     PathBuilder, PathEffect, Rect, Typeface,
+ };
+-use std::collections::HashMap;
++use std::collections::{HashMap, HashSet};
+ 
+ use crate::error::HwpError;
+ use crate::model::image::ImageEffect;
+@@ -22,13 +22,20 @@ pub struct SkiaLayerRenderer {
+     /// key = primary face name (Typeface::family_name), value = Typeface.
+     /// SVG 의 `--font-path` 와 같은 패턴으로 ttfs 디렉토리의 한컴 전용 폰트 (HY견명조 등) 도 사용 가능.
+     custom_typefaces: HashMap<String, Typeface>,
++    /// [diagnostic patch] 시스템 폰트 family list 사전 캐시 — macOS 의
++    /// CoreText downloadable-font lookup IPC hang 회피용. match_family_style
++    /// 호출 전에 멤버십 체크해 missing family 를 CoreText 에 던지지 않음.
++    system_families: HashSet<String>,
+ }
  
  impl SkiaLayerRenderer {
      pub fn new() -> Self {
-+        // [diagnostic patch from rhwp-python ci/patches/macos-coretext-fix.patch]
-+        // macOS 의 CoreText downloadable-font lookup IPC (fontd mach port) 무한 대기 회피 시도.
-+        #[cfg(target_os = "macos")]
-+        unsafe {
-+            extern "C" {
-+                fn CTFontManagerSetAutoActivationSetting(
-+                    bundle_id: *const core::ffi::c_void,
-+                    setting: u32,
-+                );
-+            }
-+            // kCTFontManagerAutoActivationDisabled = 1
-+            CTFontManagerSetAutoActivationSetting(core::ptr::null(), 1);
-+        }
++        let font_mgr = FontMgr::default();
++        let system_families: HashSet<String> = font_mgr.family_names().collect();
          Self {
-             font_mgr: FontMgr::default(),
+-            font_mgr: FontMgr::default(),
++            font_mgr,
              custom_typefaces: HashMap::new(),
++            system_families,
+         }
+     }
+ 
+@@ -326,6 +333,11 @@ impl SkiaLayerRenderer {
+                     }
+                 }
+                 for family in &families {
++                    // [diagnostic patch] macOS 의 CoreText downloadable lookup IPC
++                    // hang 회피 — 시스템에 없는 family 는 match_family_style 에 던지지 않음.
++                    if !self.system_families.contains(family.as_str()) {
++                        continue;
++                    }
+                     if let Some(tf) = self.font_mgr.match_family_style(family, font_style) {
+                         push(&mut chain, &mut seen, tf);
+                     }
