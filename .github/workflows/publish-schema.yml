@@ -30,7 +30,7 @@ jobs:
     name: Verify schema sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       # ^ skia-safe (rhwp 의 native-skia feature) 가 Linux 에서 freetype / fontconfig 동적 링크.
@@ -60,7 +60,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Prepare pages directory — copy versioned schema + content-addressed alias
         # ^ 불변 경로 정책: repo 의 hwp_ir_v*.json 을 모두 각 버전 URL 로 배포.
         #   v2 도입 시 python/rhwp/ir/schema/hwp_ir_v2.json 을 추가하기만 하면
