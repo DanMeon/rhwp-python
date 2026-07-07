@@ -1,8 +1,10 @@
 ---
-status: Active
+status: Frozen
 description: "업스트림 제안 — HWPX serializer 의 legacy 도형 경로(ellipse/arc/polygon/curve/chart/ole)가 hp:shapeComment 를 미직렬화. #1392 는 pic/equation/container/rect 4경로만 구현, render_common_shape_xml 누락. 실문서 round-trip 으로 polygon 설명 소실 재현. 제안 패치 diff 0 실측. 상류 등록 [#1451](https://github.com/edwardkim/rhwp/issues/1451)."
 last_updated: 2026-06-21
 ---
+
+> **RESOLVED 2026-07-07** — 상류 [#1451](https://github.com/edwardkim/rhwp/issues/1451) 머지로 해결. legacy 도형 shapeComment 직렬화 commit `2d6d0cf9` (1단계) + `c0f94fbb` (Polygon 보존 가드 2단계). rhwp-python pin `10f5c51e` 에 흡수 — `table-vpos-01.hwpx` round-trip 무손실 (v0.8.1). 아래 본문은 제안 시점 historical record.
 
 > 외부 binding (`rhwp-python`) 구현 중 업스트림에서 수정이 필요해 보이는 부분을 발견하여, Claude 로 조사 및 다차례 사실 검증을 거친 결과입니다.
 

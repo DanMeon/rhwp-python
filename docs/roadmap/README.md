@@ -36,6 +36,7 @@ rhwp-python 의 버전별 로드맵 + **활성 spec 인덱스 SSOT**. 모든 spe
 | v0.6.0 (png-vlm-render) | Frozen | [v0.6.0/png-vlm-render.md](v0.6.0/png-vlm-render.md) | [design/v0.6.0/png-vlm-render-research.md](../design/v0.6.0/png-vlm-render-research.md) |
 | v0.7.0 (hwpx-writeback-baseline) | Frozen | [v0.7.0/hwpx-writeback-baseline.md](v0.7.0/hwpx-writeback-baseline.md) | [design/v0.7.0/hwpx-writeback-baseline-research.md](../design/v0.7.0/hwpx-writeback-baseline-research.md) |
 | v0.8.0 (hwpx-writeback-expansion) | Frozen | [v0.8.0/hwpx-writeback-expansion.md](v0.8.0/hwpx-writeback-expansion.md) | [design/v0.8.0/hwpx-writeback-expansion-research.md](../design/v0.8.0/hwpx-writeback-expansion-research.md) |
+| v0.8.1 (hwpx-fidelity-sync) | Draft | [v0.8.1/hwpx-fidelity-sync.md](v0.8.1/hwpx-fidelity-sync.md) | [design/v0.8.1/hwpx-fidelity-sync-research.md](../design/v0.8.1/hwpx-fidelity-sync-research.md) |
 
 ## 미착수 작업 계획
 
@@ -72,6 +73,18 @@ SemVer 0.x.y 단계에서 minor 는 단조 증가. v1.0.0 은 API 안정 선언�
 비범위:
 - 완전한 레이아웃 보존 (폰트 embedding 미포함 상태의 재생성) — 뷰어 차이 허용
 - 매크로·폼 필드·OLE 임베딩 — HWP 독자 확장 기능은 장기 과제
+
+### IR 노출 확장 — 상류 파싱 정보의 미노출 갭 해소
+
+2026-07-07 갭 조사 결과: 상류 `model` 은 완전한 문서 모델 (글자·문단 스타일, 문서 메타데이터, 하이퍼링크, 차트 데이터 등) 을 파싱하나 우리 IR 은 텍스트 + 기본 구조만 노출한다. 대부분 상류가 이미 파싱해 두므로 얇은 wire-through 로 메울 수 있다 (신규 파싱 구현 아님). v0.3.0 "IR 확장" 라인의 연장이며 위 writeback 라인과 독립 축. 버전 분할은 착수 시점 `/new-spec` 으로 확정.
+
+우선순위 (RAG/문서이해 가치 × 노력):
+
+- **티어 1 — 값싼 노출, 즉시 가치** (상류 파싱 완료, 현재 IR 이 버림): 문서 메타데이터 (제목·작성자·작성일, 현재 항상 빈값) · 글자 스타일 확장 (크기·색상·폰트, 현재 굵기/기울임/밑줄/취소선 4개만) · 문단 속성 (정렬·들여쓰기·줄간격, 현재 head_type/level 만) · 하이퍼링크 URL (현재 컨트롤 통째 미노출).
+- **티어 2 — 중간 노력, 큰 기능**: 차트 구조화 데이터 추출 (`series{name, values}` — 읽기 전용, 현재 SVG 렌더만) · 페이지 단위 Markdown / 레이아웃 인식 텍스트 (RAG 청킹, 현재 전체 IR 순서 `extract_text` 만) · HWP5 binary writeback (`to_hwp`, 상류 준비 완료 — 위 writeback 라인과 합류).
+- **티어 3 — 상황별**: 표 스타일 (제목행 반복·테두리·셀 정렬) · 그림 기하·효과·alt-text · 전체 텍스트 검색 · HTML 렌더.
+
+양식개체 (체크박스/버튼) 는 위 비범위의 "폼 필드" 와 일치 — 장기 과제로 유지. 편집 commands (에디터 지향) 와 문서 생성 빌더는 "문서 이해·변환" 정체성 밖.
 
 > 과거 GA 완료된 minor (v0.1.x ~ v0.3.0) 의 historical record 는 [v0.1.0/rhwp-python.md](v0.1.0/rhwp-python.md) / [v0.2.0/ir.md](v0.2.0/ir.md) / [v0.3.0/ir-expansion.md](v0.3.0/ir-expansion.md) / [v0.3.0/cli.md](v0.3.0/cli.md) 가 보유.
 
