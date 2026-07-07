@@ -11,7 +11,7 @@
 | [issue-find-control-text-positions.md](issue-find-control-text-positions.md) | Frozen | [edwardkim/rhwp#390](https://github.com/edwardkim/rhwp/issues/390) | 2026-04-28 ([PR #405](https://github.com/edwardkim/rhwp/pull/405)) | `Paragraph::control_text_positions(&self)` 옵션 A 채택. v0.3.1 spec 이 본 파일 참조 → 삭제 대신 in-place Frozen |
 | [issue-utf16-pos-to-char-idx.md](issue-utf16-pos-to-char-idx.md) | Frozen | [edwardkim/rhwp#484](https://github.com/edwardkim/rhwp/issues/484) | 2026-04-30 ([PR #494](https://github.com/edwardkim/rhwp/pull/494)) | #390 후속 같은 결. `Paragraph::utf16_pos_to_char_idx(&self)` 옵션 A 채택. v0.3.2 spec 이 본 파일 참조 → 삭제 대신 in-place Frozen |
 | [issue-macos-png-coretext-hang.md](issue-macos-png-coretext-hang.md) | Frozen | [edwardkim/rhwp#823](https://github.com/edwardkim/rhwp/issues/823) | 2026-06-04 (상류 v0.7.13) | headless macOS PNG 렌더 hang (CoreText IPC). v0.8.0 상류 sync 로 fix 흡수 + `ci.yml` macOS smoke 잡 복원 |
-| [issue-hwpx-shapecomment-drawing-shapes.md](issue-hwpx-shapecomment-drawing-shapes.md) | Active | [edwardkim/rhwp#1451](https://github.com/edwardkim/rhwp/issues/1451) | — | `render_common_shape_xml` 이 ellipse/arc/polygon/curve/chart/ole 의 `hp:shapeComment` 미방출 (#1392 후속). 제안 패치 적용 시 round-trip diff 0 실측 |
+| [issue-hwpx-shapecomment-drawing-shapes.md](issue-hwpx-shapecomment-drawing-shapes.md) | Frozen | [edwardkim/rhwp#1451](https://github.com/edwardkim/rhwp/issues/1451) | 2026-07-07 (상류 commit `2d6d0cf9`+`c0f94fbb`) | legacy 도형 (`render_common_shape_xml`) `hp:shapeComment` 미방출 (#1392 후속). 상류 해결 흡수 (pin `10f5c51e`) → `table-vpos-01.hwpx` round-trip 무손실. v0.8.1 spec 이 본 파일 참조 → 삭제 대신 in-place Frozen |
 
 ## Archive 정책
 

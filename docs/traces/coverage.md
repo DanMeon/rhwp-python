@@ -644,8 +644,11 @@ v0.4.0+ 신규 spec 의 인수조건 ↔ 테스트 매핑. 기존 v0.1.0 ~ v0.3.
 | v0.7.0/hwpx-writeback-baseline | AC-6 | `tests/test_hwpx_writeback.py::TestAdditiveNoSideEffects::test_writeback_does_not_mutate_existing_surfaces` |
 | v0.8.0/hwpx-writeback-expansion | AC-1 | `tests/test_hwpx_writeback.py::TestExpansionTableAndPicture::test_table_and_picture_roundtrip_equivalent` |
 | v0.8.0/hwpx-writeback-expansion | AC-2 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_preserved_document_is_ok_with_invariant` |
-| v0.8.0/hwpx-writeback-expansion | AC-3 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_lossy_document_reports_human_readable_differences` |
 | v0.8.0/hwpx-writeback-expansion | AC-3 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_preserved_document_differences_are_empty_str_list` |
 | v0.8.0/hwpx-writeback-expansion | AC-4 | `tests/test_hwpx_writeback.py::TestVerifyNoSideEffects::test_verify_does_not_mutate_existing_surfaces` |
 | v0.8.0/hwpx-writeback-expansion | AC-5 | `tests/test_hwpx_writeback.py::TestVerifyErrorContract::test_serializable_document_passes_verify_serialization` |
 | v0.8.0/hwpx-writeback-expansion | AC-6 | `tests/test_hwpx_writeback.py::TestV070GuaranteeIntact::test_text_paragraph_guarantee_holds_under_verify` |
+| v0.8.1/hwpx-fidelity-sync | AC-1 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_shapecomment_document_roundtrips_lossless` |
+| v0.8.1/hwpx-fidelity-sync | AC-2 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_preserved_document_is_ok_with_invariant` |
+| v0.8.1/hwpx-fidelity-sync | AC-3 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_shapecomment_document_roundtrips_lossless` |
+| v0.8.1/hwpx-fidelity-sync | AC-4 | `tests/test_hwpx_writeback.py::TestVerifyReport::test_report_surfaces_differences_when_constructed_lossy` |

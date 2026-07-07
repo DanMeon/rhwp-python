@@ -158,6 +158,7 @@ class TestExpansionTableAndPicture:
 
 class TestVerifyReport:
     @pytest.mark.spec("v0.8.0/hwpx-writeback-expansion#AC-2")
+    @pytest.mark.spec("v0.8.1/hwpx-fidelity-sync#AC-2")
     def test_preserved_document_is_ok_with_invariant(self, samples_dir: Path) -> None:
         doc = rhwp.parse(str(samples_dir / "hwpx" / "aift.hwpx"))
         report = doc.verify_hwpx_roundtrip()
@@ -174,19 +175,33 @@ class TestVerifyReport:
         assert isinstance(report.differences, list)
         assert report.differences == []
 
-    @pytest.mark.spec("v0.8.0/hwpx-writeback-expansion#AC-3")
-    def test_lossy_document_reports_human_readable_differences(
-        self, parsed_hwpx: rhwp.Document
-    ) -> None:
-        # ^ table-vpos-01.hwpx 는 도형 shapeComment 가 round-trip 에서 손실되는 자연
-        #   발생 fixture (상류 serializer 미직렬화) — verify 의 손실 검출력 회귀 가드.
-        #   특정 개수·메시지는 박지 않는다 (상류가 손실을 고치면 이 fixture 갱신).
+    @pytest.mark.spec("v0.8.1/hwpx-fidelity-sync#AC-1")
+    @pytest.mark.spec("v0.8.1/hwpx-fidelity-sync#AC-3")
+    def test_shapecomment_document_roundtrips_lossless(self, parsed_hwpx: rhwp.Document) -> None:
+        # ^ table-vpos-01.hwpx 의 도형 shapeComment 는 상류 #1451 (legacy 도형
+        #   shapeComment 직렬화) 해결로 이제 round-trip 무손실이다. 손실이 재발하면
+        #   ok is False 로 red — 상류 fidelity 회귀 가드.
         report = parsed_hwpx.verify_hwpx_roundtrip()
-        assert report.ok is False
-        assert report.differences, "verify must surface the upstream shapeComment loss"
-        assert all(isinstance(d, str) and d.strip() for d in report.differences)
-        # 불변은 양방향 모두 성립
+        assert report.ok is True
+        assert report.differences == []
         assert report.ok == (len(report.differences) == 0)
+
+    @pytest.mark.spec("v0.8.1/hwpx-fidelity-sync#AC-4")
+    def test_report_surfaces_differences_when_constructed_lossy(self) -> None:
+        # ^ 현 fixture 코퍼스는 무손실 (상류 fidelity 성숙) 이라 손실을 자연 재현할 수
+        #   없다. detection 은 상류 diff_documents 에 위임하고, 여기서는 binding 표면의
+        #   리포트 계약 — differences 가 채워졌을 때의 형태 + False 방향 invariant — 를
+        #   RoundtripReport 를 직접 구성해 가드한다.
+        lossy = rhwp.RoundtripReport(
+            ok=False,
+            differences=[
+                'section[0] paragraph[33]/ctrl[0] shape comment: expected="다각형입니다." actual=""'
+            ],
+        )
+        assert lossy.differences, "lossy report must surface non-empty differences"
+        assert all(isinstance(d, str) and d.strip() for d in lossy.differences)
+        # 불변은 False 방향에서도 성립
+        assert lossy.ok == (len(lossy.differences) == 0)
 
 
 class TestVerifyNoSideEffects:

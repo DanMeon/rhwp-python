@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] — 2026-07-07
+
+PATCH release. 상류 `edwardkim/rhwp` 의 HWPX serializer fidelity 개선을 흡수한다 — 특히 본 프로젝트가 보고한 이슈 [#1451](https://github.com/edwardkim/rhwp/issues/1451) (legacy 도형 `shapeComment` 미직렬화) 이 상류에서 해결되어, `verify_hwpx_roundtrip` 의 보존 boundary 가 도형 shapeComment 까지 실질 확대됐다. 공개 API / IR schema (`"1.1"`) 불변, 표면 신규 0. spec / ADR: [docs/roadmap/v0.8.1/hwpx-fidelity-sync.md](docs/roadmap/v0.8.1/hwpx-fidelity-sync.md) / [docs/design/v0.8.1/hwpx-fidelity-sync-research.md](docs/design/v0.8.1/hwpx-fidelity-sync-research.md).
+
+### Changed
+
+- `verify_hwpx_roundtrip()` 의 round-trip 무손실 범위가 legacy 도형 (polygon / ellipse 등) `shapeComment` 까지 넓어졌다 — 상류 #1451 해결을 pin 으로 흡수한 결과. `verify_hwpx_roundtrip` 시그니처·반환 타입 (`RoundtripReport`) 은 불변이고, 상류 `diff_documents` 가 비교하는 필드 집합만 넓어진 하위호환 확대다. 이전에 `table-vpos-01.hwpx` 의 도형 캡션이 round-trip 에서 소실되던 것이 이제 보존된다.
+
+### Tests
+
+- `tests/test_hwpx_writeback.py` 의 `test_lossy_document_reports_human_readable_differences` 재설계 — 상류 #1451 해결로 `table-vpos-01.hwpx` 가 무손실 round-trip 이 되어 자연 발생 손실 fixture 가 소멸했다. (1) 도형 shapeComment 무손실 positive (`test_shapecomment_document_roundtrips_lossless` — 손실 재발 시 red 회귀 가드) + (2) `RoundtripReport(ok=False, ...)` unit-construct 로 손실 리포트 계약 (non-empty `list[str]` + False 방향 invariant) 을 검증하는 `test_report_surfaces_differences_when_constructed_lossy` 로 교체. 손실 detection 자체는 상류 `diff_documents` 계약에 위임 (현 fixture 코퍼스 무손실).
+
+### Build
+
+- `external/rhwp` submodule pin `7d9aae7f` (v0.7.16 + 36) → `10f5c51e` (v0.7.17 + 68, 상류 `main` HEAD). v0.8.0 GA 기록 이후 흡수된 238 commit 을 확정. **본 binding 관점 회귀 0** — 공개 API / IR schema (`"1.1"`) / wheel 의존성 불변. 우리가 소비하는 상류 심볼 (`DocumentCore` 메서드 / `serialize_hwpx` / `diff_documents` / `svgs_to_pdf` / `RasterRenderOptions` / `LayerRasterRenderer` / `Paragraph::control_text_positions` / `utf16_pos_to_char_idx`) 시그니처 전부 불변. 검증: `cargo check` clean, `maturin develop --release` clean, `pytest -m "not slow"` 회귀 0, IR baseline byte-equal (`aift.hwp` + `table-vpos-01.hwpx`).
+  - 흡수한 핵심 상류 개선: **legacy 도형 shapeComment 직렬화 (#1451** — 본 프로젝트 보고, commit `2d6d0cf9` + `c0f94fbb`). 이로써 `verify_hwpx_roundtrip` 의 `diff_documents` 위임 검증이 도형 shapeComment 손실을 자동 반영한다. 그 외 바탕쪽 MasterPage 직렬화 / 쪽 테두리 pageBorderFill / 묶음 개체 자식 좌표 등 serializer emit 개선이 동반되나, 상류 `diff_documents` 가 비교하지 않아 `verify_hwpx_roundtrip` 보장 범위에는 미포함 (emit ≠ verify).
+  - 상류 이슈 문서 [docs/upstream/issue-hwpx-shapecomment-drawing-shapes.md](docs/upstream/issue-hwpx-shapecomment-drawing-shapes.md) 를 RESOLVED (in-place Frozen) 로 전환 — 본 프로젝트 보고 → 상류 머지 경로 완결.
+- `Cargo.toml` 의 `version` `0.8.0` → `0.8.1`. `pyproject.toml` 은 `dynamic = ["version"]` 으로 자동 추종.
+
 ## [0.8.0] — 2026-06-21
 
 MINOR release. parse 한 `Document` 를 HWPX 로 저장했을 때 IR 의미가 보존되는지 검증하는 `Document.verify_hwpx_roundtrip()` 표면을 추가하고, 보존 boundary 를 v0.7.0 의 텍스트·문단에서 상류 `diff_documents` 가 실제 비교하는 필드 집합 (표 cell·캡션·page_break, 그림 크기·캡션, char_shape·lineseg, PageDef, 리소스·BinData count) 으로 확대한다. 직렬화·진단 모두 상류 위임 — 추가만 있고 기존 표면 보존, IR schema (`"1.1"`) 변경 0. 동시에 상류 v0.7.13 ~ v0.7.16 sync 를 흡수한다.
