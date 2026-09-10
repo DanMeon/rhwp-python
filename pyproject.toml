@@ -67,17 +67,17 @@ examples = [
     "typer>=0.12",
     "langchain-core>=0.2",
     "langchain-text-splitters>=0.2",
-    "fastmcp>=3,<4",
+    "fastmcp>=3,<5",
     "pillow>=10",
 ]
 # ^ rhwp-mcp MCP 서버 (v0.5.0+). standalone fastmcp v3 (jlowin) — 2026-05 기준
 #   현업 표준 (MCP 서버 약 70% 사용). 공식 mcp SDK 안의 FastMCP v1 은 frozen 상태고
 #   v2/v3 의 OAuth / OpenTelemetry / server composition / streamable-http 우선 같은
 #   프로덕션 기능은 standalone 에만 존재. 상세: docs/design/v0.5.0/mcp-research.md § 1.
-mcp = ["fastmcp>=3,<4"]
+mcp = ["fastmcp>=3,<5"]
 # ^ rhwp-mcp 의 chunks 도구 (v0.5.0 S3 부터). text-splitters 가 추가로 필요.
 mcp-chunks = [
-    "fastmcp>=3,<4",
+    "fastmcp>=3,<5",
     "langchain-core>=0.2",
     "langchain-text-splitters>=0.2",
 ]
@@ -102,7 +102,7 @@ testing = [
     # ^ rhwp-py CLI smoke / integration tests (tests/test_cli.py)
     "typer>=0.12",
     # ^ rhwp-mcp 서버 단위 테스트 (tests/test_mcp_server.py) — fastmcp 인스턴스 inspection.
-    "fastmcp>=3,<4",
+    "fastmcp>=3,<5",
     # ^ v0.6.0 PNG 렌더링 회귀 테스트 (tests/test_render_png.py) — dimension 검증 (AC-3).
     #   render_png 자체는 Pillow 무관 (native skia 단독). 본 의존성은 *테스트 측* PNG
     #   디코드용. test-without-extras CI job 에서 미설치되어 file-level skip 발동.
